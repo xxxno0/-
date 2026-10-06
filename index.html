@@ -1,0 +1,2743 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>몬스터 테이밍 월드</title>
+<meta name="theme-color" content="#121c22">
+<script>if(/^https?:$/.test(location.protocol)){for(const [r,h] of [["manifest","manifest.webmanifest"],["icon","icon-192.png"],["apple-touch-icon","icon-192.png"]]){const l=document.createElement("link");l.rel=r;l.href=h;document.head.appendChild(l)}}</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap">
+<style>
+/* Layout: full-screen canvas world, HUD panels pinned to corners, modal cards over a dimmed map. Single dark "evening field" UI on purpose. */
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
+:root{
+  --ink:#121c22; --panel:#18262e; --panel-2:#22343e; --line:#35505d;
+  --text:#eef4f1; --muted:#9db3ad; --sun:#ffd24a; --sun-ink:#3a2a00;
+  --water:#4aa8ff; --fire:#ff7a3d; --grass:#5cc65a; --danger:#ff6b6b;
+  --display:"Jua","Gowun Dodum",system-ui,sans-serif;
+  --body:"Gowun Dodum","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  color-scheme:dark;
+}
+html,body{height:100%}
+body{margin:0;background:var(--ink);color:var(--text);font-family:var(--body);font-size:15px;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none}
+#game{position:fixed;inset:0;width:100%;height:100%;display:block;background:var(--ink)}
+button{font-family:var(--display);cursor:pointer}
+button:focus-visible,input:focus-visible{outline:3px solid var(--sun);outline-offset:2px}
+
+.panel{background:var(--panel);border:2px solid var(--line);border-radius:6px;box-shadow:0 4px 0 rgba(0,0,0,.35)}
+.btn{border:0;border-radius:6px;padding:12px 18px;font-size:17px;background:var(--sun);color:var(--sun-ink);box-shadow:0 4px 0 #b88f10;transition:transform .08s}
+.btn:active{transform:translateY(3px);box-shadow:0 1px 0 #b88f10}
+.btn.ghost{background:var(--panel-2);color:var(--text);box-shadow:0 4px 0 #0d161b}
+.btn.black{background:#05090b;color:var(--text);border:1px solid #2a3a42;box-shadow:0 4px 0 #000}
+.btn.black:active{box-shadow:0 1px 0 #000}
+.btn[disabled]{opacity:.5;cursor:default}
+
+/* ---------- auth ---------- */
+#auth{position:fixed;inset:0;display:grid;place-items:center;padding:16px;background:radial-gradient(120% 80% at 50% 110%,#2b4a2c 0%,#16262b 55%,#0e171c 100%);z-index:30;overflow:auto}
+.auth-card{width:min(420px,100%);padding:26px 22px 22px;display:grid;gap:16px}
+.logo{font-family:var(--display);font-size:clamp(30px,8vw,40px);line-height:1.05;text-wrap:balance;color:var(--text)}
+.logo em{font-style:normal;color:var(--sun)}
+.trio{display:flex;gap:6px;justify-content:center}
+.trio canvas{width:84px;height:84px}
+.sub{color:var(--muted);line-height:1.55;font-size:14px}
+label.f{display:grid;gap:6px;font-family:var(--display);font-size:15px}
+input.t{font:inherit;font-size:17px;padding:12px;border-radius:6px;border:2px solid var(--line);background:var(--ink);color:var(--text)}
+.swatches{display:flex;gap:8px;flex-wrap:wrap}
+.swatches button{width:36px;height:36px;border-radius:50%;border:3px solid transparent;padding:0}
+.swatches button[aria-pressed="true"]{border-color:var(--text)}
+.linkbtn{background:none;border:0;color:var(--muted);font-family:var(--body);font-size:14px;text-decoration:underline;padding:4px;justify-self:center}
+input.t[type="date"]{min-height:48px}
+.err{color:var(--danger);font-size:14px;min-height:1.2em}
+.acct{font-size:13px;color:var(--muted);border-top:1px dashed var(--line);padding-top:12px;line-height:1.5}
+
+/* ---------- HUD ---------- */
+.hud{position:fixed;z-index:10;pointer-events:none}
+/* party (top-left) */
+#party{top:calc(12px + env(safe-area-inset-top,0px));left:12px;padding:8px;width:218px}
+.party-head{display:flex;justify-content:space-between;align-items:baseline;padding:0 4px 6px}
+#me-name{font-family:var(--display);font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#badges{font-size:12px;color:var(--sun);white-space:nowrap}
+#party-list{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+#party-list button{pointer-events:auto;width:100%;display:grid;grid-template-columns:34px 1fr;gap:6px;align-items:center;text-align:left;background:var(--ink);border:2px solid transparent;border-radius:6px;padding:3px 6px 3px 3px;color:var(--text);font-family:var(--body)}
+#party-list button.on{border-color:var(--sun);background:#26353d}
+#party-list button.down{opacity:.5}
+#party-list canvas{width:34px;height:34px}
+.pm-top{display:flex;justify-content:space-between;gap:6px;font-size:13px;line-height:1.1}
+.pm-top b{font-family:var(--display);font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pm-top span{color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.bar2{height:5px;background:#0b1216;border-radius:3px;overflow:hidden;margin-top:3px}
+.bar2 i{display:block;height:100%;background:var(--grass)}
+.bar2.xp{height:3px;margin-top:2px}.bar2.xp i{background:#6fb7ff}
+.party-hint{font-size:11px;color:var(--muted);padding:6px 4px 0;text-align:center}
+.party-empty{font-size:13px;color:var(--muted);padding:2px 4px 4px}
+
+/* friends & guild (right side) */
+#soc-btn{pointer-events:auto;margin-top:8px;width:100%;background:var(--panel-2);color:var(--text);border:1px solid var(--line);border-radius:4px;font-size:13px;padding:5px 8px}
+#social{position:fixed;right:12px;top:calc(160px + env(safe-area-inset-top,0px));width:310px;max-height:calc(100% - 330px);min-height:220px;z-index:12;display:flex;flex-direction:column;overflow:hidden}
+.soc-head{display:flex;align-items:center;gap:8px;padding:8px 8px 0 8px}
+.soc-tabs{display:flex;gap:4px;flex:1}
+.soc-tabs button{flex:1;background:var(--ink);color:var(--muted);border:1px solid var(--line);border-radius:6px 6px 0 0;padding:6px 4px;font-size:14px}
+.soc-tabs button.on{background:var(--panel-2);color:var(--sun);border-bottom-color:var(--panel-2)}
+#soc-close{background:none;border:0;color:var(--muted);font-size:16px;padding:4px 6px}
+#soc-body{padding:4px 12px 12px;overflow:auto;display:grid;gap:6px;align-content:start;background:var(--panel)}
+#soc-body h4{margin:8px 0 0;font-family:var(--display);font-weight:400;font-size:14px;color:var(--sun)}
+.soc-row{display:flex;gap:6px;align-items:center}
+.soc-in{flex:1;min-width:0;font-size:14px!important;padding:8px!important}
+.soc-code{flex:1;font-family:var(--display);font-size:18px;letter-spacing:.06em;background:var(--ink);border-radius:6px;padding:6px 10px;-webkit-user-select:all;user-select:all}
+.soc-item{display:flex;align-items:center;gap:6px;padding:6px 8px;background:var(--panel-2);border-radius:6px;font-size:14px}
+.soc-item .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.soc-item small{color:var(--muted);font-size:12px;white-space:nowrap}
+.sb{background:var(--sun);color:var(--sun-ink);border:0;border-radius:5px;padding:5px 9px;font-size:13px;white-space:nowrap}
+.sb.ghost{background:var(--ink);color:var(--muted);border:1px solid var(--line)}
+.sb.wide{width:100%;margin-top:8px;padding:8px}
+.soc-empty{margin:0;color:var(--muted);font-size:13px;line-height:1.5}
+.soc-gname{font-family:var(--display);font-size:22px;margin-top:6px}
+.soc-chat{background:var(--ink);border-radius:6px;padding:8px;height:150px;overflow:auto;font-size:13px;line-height:1.5;display:grid;align-content:start;gap:2px}
+.soc-chat .me b{color:var(--sun)}.soc-chat b{font-weight:400;color:#9fd3ff}
+
+/* battle */
+#battle{position:fixed;inset:0;z-index:18;display:grid;grid-template-rows:1fr auto;background:#0e171c}
+#bcv{width:100%;height:100%;display:block;min-height:0}
+.bpanel{padding:12px 16px calc(14px + env(safe-area-inset-bottom,0px));background:var(--panel);border-top:2px solid var(--line);display:grid;gap:10px}
+#blog{font-size:17px;line-height:1.5;min-height:1.6em;font-family:var(--display)}
+#bmoves{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+#bmoves button,#bopts button,#bswitch button{border-radius:6px;border:2px solid var(--line);background:var(--panel-2);color:var(--text);padding:9px 8px;text-align:left;min-width:0}
+#bmoves button b{display:block;font-weight:400;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#bmoves button small{font-family:var(--body);font-size:12px;color:var(--muted)}
+#bmoves button i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}
+#bopts{display:flex;gap:8px;flex-wrap:wrap}
+#bopts button{text-align:center;flex:1 1 90px;font-size:15px}
+#bopts button.tame{background:#3a3010;border-color:#b88f10;color:var(--sun)}
+#battle button:disabled{opacity:.4;cursor:default}
+#bswitch{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+#bswitch button small{display:block;color:var(--muted);font-family:var(--body);font-size:12px}
+
+/* learn a move */
+#learn{position:fixed;inset:0;z-index:24;display:grid;place-items:center;padding:16px;background:rgba(6,12,16,.7)}
+.learn-card{width:min(420px,100%);padding:18px;display:grid;gap:10px}
+.learn-card h2{margin:0;font-family:var(--display);font-weight:400;font-size:21px;line-height:1.35}
+.learn-card p{margin:0;color:var(--muted);font-size:14px;line-height:1.5}
+.learn-card .mv{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:10px 12px;border-radius:6px;border:2px solid var(--line);background:var(--panel-2);color:var(--text);font-size:15px}
+.learn-card .mv.new{border-color:var(--sun)}
+.learn-card .mv small{font-family:var(--body);color:var(--muted);font-size:12px}
+.tag{font-size:11px;padding:1px 6px;border-radius:99px;color:#0d161b;margin-left:6px;vertical-align:1px}
+
+/* world map */
+#wmap{position:fixed;inset:0;z-index:19;background:rgba(6,12,16,.92);display:grid;grid-template-rows:auto 1fr auto;padding:calc(12px + env(safe-area-inset-top,0px)) 16px calc(12px + env(safe-area-inset-bottom,0px));gap:8px}
+#wmap header{display:flex;justify-content:space-between;align-items:center;gap:12px}
+#wmap h2{margin:0;font-family:var(--display);font-weight:400;font-size:22px}
+#wmc{width:100%;height:100%;min-height:0;display:block;border-radius:8px;background:#0b1216;touch-action:none;cursor:grab}
+.wm-legend{display:flex;gap:10px 16px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.wm-legend span{display:flex;align-items:center;gap:5px}
+.wm-legend i{width:10px;height:10px;border-radius:2px;display:inline-block}
+#online{top:calc(12px + env(safe-area-inset-top,0px));right:12px;padding:8px 12px;min-width:150px;max-width:200px}
+#online h3{margin:0 0 4px;font-family:var(--display);font-weight:400;font-size:14px;display:flex;align-items:center;gap:6px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--grass);display:inline-block}
+.dot.off{background:var(--muted)}
+#online ul{list-style:none;margin:0;padding:0;font-size:13px;display:grid;gap:2px;max-height:30vh;overflow:hidden}
+#online li{display:flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#online li i{width:8px;height:8px;border-radius:50%;flex:none}
+#minimap{bottom:calc(12px + env(safe-area-inset-bottom,0px));right:12px;padding:4px;line-height:0}
+#minimap canvas{width:160px;height:120px;image-rendering:pixelated;border-radius:3px}
+#quest{top:calc(12px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);padding:8px 14px;max-width:min(440px,calc(100% - 24px));text-align:center;font-size:14px;line-height:1.4}
+#quest b,#quest-title{font-family:var(--display);font-weight:400;color:var(--sun);display:block;font-size:12px;letter-spacing:.08em}
+#keys{bottom:calc(12px + env(safe-area-inset-bottom,0px));left:12px;padding:8px 12px;font-size:13px;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap}
+kbd{font-family:var(--display);background:var(--panel-2);border:1px solid var(--line);border-bottom-width:3px;border-radius:4px;padding:0 6px;color:var(--text)}
+
+/* ---------- dialog ---------- */
+#dialog{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));width:min(620px,calc(100% - 24px));padding:14px 18px 12px;z-index:15;cursor:pointer}
+#dialog .who{font-family:var(--display);color:var(--sun);font-size:16px;margin-bottom:4px}
+#dialog .say{font-size:17px;line-height:1.6;min-height:3.2em}
+#dialog .next{text-align:right;font-size:12px;color:var(--muted)}
+
+/* ---------- monster card ---------- */
+#modal{position:fixed;inset:0;z-index:20;display:grid;place-items:center;padding:16px;background:rgba(6,12,16,.6)}
+.mon-card{width:min(440px,100%);padding:18px;display:grid;gap:12px;max-height:100%;overflow:auto}
+.mon-head{display:flex;gap:14px;align-items:center}
+.mon-head canvas{width:120px;height:120px;border-radius:6px;flex:none}
+.mon-name{font-family:var(--display);font-size:30px;line-height:1}
+.chip{display:inline-block;font-family:var(--display);font-size:13px;padding:3px 10px;border-radius:99px;color:#0d161b;margin-top:6px}
+.mon-desc{line-height:1.65;font-size:15px}
+.stats{display:grid;grid-template-columns:auto 1fr auto;gap:5px 10px;align-items:center;font-size:13px}
+.stats .bar{height:8px;background:var(--ink);border-radius:4px;overflow:hidden}
+.stats .bar span{display:block;height:100%}
+.stats .n{font-variant-numeric:tabular-nums;color:var(--muted);text-align:right}
+.matchup{font-size:13px;color:var(--muted);background:var(--ink);border-radius:6px;padding:8px 10px;line-height:1.5}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.row .btn{flex:1 1 140px}
+.confirm-q{font-family:var(--display);font-size:19px;text-align:center;line-height:1.4}
+
+/* ---------- ESC menu ---------- */
+#menu{position:fixed;inset:0;z-index:22;display:grid;place-items:center;padding:16px;background:rgba(6,12,16,.6)}
+.menu-card{width:min(380px,100%);padding:20px;display:grid;gap:14px}
+.menu-card h2{margin:0;font-family:var(--display);font-weight:400;font-size:26px}
+#menu-status{margin:0;color:var(--muted);line-height:1.55;font-size:14px;min-height:3.1em}
+.menu-card .sep{border-top:1px dashed var(--line)}
+#menu-btn{pointer-events:auto;white-space:nowrap;flex:none;background:var(--panel-2);color:var(--text);border:1px solid var(--line);border-radius:4px;font-size:12px;padding:3px 8px;margin-left:auto}
+#online h3{justify-content:flex-start;white-space:nowrap}
+#online li.hint{color:var(--sun);font-size:12px;margin-top:4px}
+/* ---------- toast & touch ---------- */
+#toast{position:fixed;left:50%;top:38%;transform:translate(-50%,-50%);z-index:25;padding:12px 18px;font-family:var(--display);font-size:17px;text-align:center;max-width:calc(100% - 32px);pointer-events:none;transition:opacity .25s}
+#touch{position:fixed;inset:0;z-index:5;pointer-events:none}
+#stick{position:fixed;width:110px;height:110px;margin:-55px 0 0 -55px;border-radius:50%;border:2px solid rgba(255,255,255,.35);background:rgba(18,28,34,.35)}
+#knob{position:absolute;left:50%;top:50%;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;background:rgba(255,255,255,.55)}
+#act{position:fixed;right:16px;bottom:calc(150px + env(safe-area-inset-bottom,0px));display:grid;gap:12px;pointer-events:auto;z-index:11}
+#act button{width:68px;height:68px;font-size:13px!important;white-space:nowrap;border-radius:50%;border:2px solid var(--line);background:var(--panel);color:var(--text);font-size:15px;line-height:1.1;box-shadow:0 4px 0 rgba(0,0,0,.35)}
+#act button.hot{background:var(--sun);color:var(--sun-ink);border-color:#b88f10}
+
+@media (max-width:640px){
+  #online{min-width:0;padding:6px 10px}
+  #online ul{display:none}
+  .party-head{flex-wrap:wrap;gap:0 6px}
+  #quest{top:calc(112px + env(safe-area-inset-top,0px));left:auto;right:12px;transform:none;max-width:calc(100% - 186px);font-size:12px;text-align:left;padding:6px 10px}
+  #keys{display:none}
+  #social{left:12px;right:12px;width:auto;top:auto;bottom:calc(12px + env(safe-area-inset-bottom,0px));max-height:62%}
+  #party{width:150px;padding:6px}
+  #party-list canvas{width:26px;height:26px}
+  #party-list button{grid-template-columns:26px 1fr}
+  .party-hint{display:none}
+  #bmoves{grid-template-columns:repeat(2,minmax(0,1fr))}
+  #bswitch{grid-template-columns:repeat(2,minmax(0,1fr))}
+  #blog{font-size:15px}
+  #minimap canvas{width:112px;height:84px}
+  .mon-head canvas{width:96px;height:96px}
+}
+@media (prefers-reduced-motion:reduce){.btn{transition:none}#toast{transition:none}}
+</style>
+</head>
+<body>
+
+<canvas id="game" aria-label="게임 화면"></canvas>
+
+<!-- ===== 회원가입 / 로그인 ===== -->
+<section id="auth">
+  <div class="auth-card panel">
+    <div class="trio" aria-hidden="true"><canvas data-mon="raki" width="168" height="168"></canvas><canvas data-mon="puhwa" width="168" height="168"></canvas><canvas data-mon="poi" width="168" height="168"></canvas></div>
+    <div class="logo">몬스터 <em>테이밍</em> 월드</div>
+
+    <div id="auth-loading" class="sub">불러오는 중이에요…</div>
+
+    <form id="signup" hidden autocomplete="off">
+      <div style="display:grid;gap:14px">
+        <p class="sub" style="margin:0">처음 오셨네요. 이름과 비밀번호를 정하면 가입이 끝나요. 모든 트레이너는 같은 마을에서 시작해요.</p>
+        <label class="f">트레이너 이름
+          <input id="nick" class="t" maxlength="10" placeholder="2~10자, 한글·영문·숫자" required>
+        </label>
+        <label class="f">비밀번호
+          <input id="pw" class="t" type="password" maxlength="20" autocomplete="new-password" placeholder="8~20자, 영문과 숫자 포함" required>
+        </label>
+        <label class="f">비밀번호 확인
+          <input id="pw2" class="t" type="password" maxlength="20" autocomplete="new-password" placeholder="한 번 더 입력" required>
+        </label>
+        <label class="f">생년월일
+          <input id="birth" class="t" type="date" min="1900-01-01" required>
+        </label>
+        <div class="f" style="display:grid;gap:6px;font-family:var(--display)">옷 색깔
+          <div class="swatches" id="swatches" role="group" aria-label="옷 색깔"></div>
+        </div>
+        <div class="err" id="signup-err" role="alert"></div>
+        <button class="btn" id="signup-btn" type="button">가입하고 시작하기</button>
+      </div>
+    </form>
+
+    <form id="login" hidden autocomplete="off">
+      <div style="display:grid;gap:14px">
+        <p class="sub" style="margin:0">다시 오셨네요, <b id="login-nick" style="color:var(--text)"></b> 트레이너님.<br><span id="login-partner"></span></p>
+        <label class="f">비밀번호
+          <input id="login-pw" class="t" type="password" maxlength="20" autocomplete="current-password" required>
+        </label>
+        <div class="err" id="login-err" role="alert"></div>
+        <button class="btn" id="login-btn" type="button">접속하기</button>
+        <button class="linkbtn" id="forgot-btn" type="button">비밀번호를 잊으셨나요?</button>
+      </div>
+    </form>
+
+    <!-- 비밀번호 재설정 / 기존 계정 보안 정보 추가 -->
+    <form id="reset" hidden autocomplete="off">
+      <div style="display:grid;gap:14px">
+        <p class="sub" style="margin:0" id="reset-intro"></p>
+        <label class="f" id="reset-birth-wrap">가입할 때 입력한 생년월일
+          <input id="reset-birth" class="t" type="date" min="1900-01-01">
+        </label>
+        <label class="f">새 비밀번호
+          <input id="reset-pw" class="t" type="password" maxlength="20" autocomplete="new-password" placeholder="8~20자, 영문과 숫자 포함" required>
+        </label>
+        <label class="f">새 비밀번호 확인
+          <input id="reset-pw2" class="t" type="password" maxlength="20" autocomplete="new-password" required>
+        </label>
+        <div class="err" id="reset-err" role="alert"></div>
+        <button class="btn" id="reset-btn" type="button">비밀번호 설정</button>
+        <button class="linkbtn" id="reset-cancel" type="button">로그인으로 돌아가기</button>
+      </div>
+    </form>
+
+    <div class="acct" id="acct-note"></div>
+  </div>
+</section>
+
+<!-- ===== HUD ===== -->
+<div id="party" class="hud panel" hidden><div class="party-head"><span id="me-name"></span><span id="badges"></span></div><ol id="party-list"></ol><div class="party-hint">E 다음 몬스터 · 1~6 바로 선택</div></div>
+<div id="quest" class="hud panel" hidden><b id="quest-title">튜토리얼</b><span id="quest-text"></span></div>
+<div id="online" class="hud panel" hidden><h3><span class="dot off" id="net-dot"></span><span id="net-label">혼자 플레이 중</span><button id="menu-btn" type="button" aria-label="메뉴 열기">메뉴</button></h3><ul id="online-list"></ul><button id="soc-btn" type="button">친구·길드</button></div>
+<aside id="social" class="panel" hidden aria-label="친구와 길드">
+  <div class="soc-head"><div class="soc-tabs"><button id="soc-tab-friends" type="button">친구</button><button id="soc-tab-requests" type="button">신청</button><button id="soc-tab-guild" type="button">길드</button></div><button id="soc-close" type="button" aria-label="닫기">✕</button></div>
+  <div id="soc-body"></div>
+</aside>
+<div id="minimap" class="hud panel" hidden><canvas id="mini" width="160" height="120"></canvas></div>
+<div id="keys" class="hud panel" hidden><span><kbd>WASD</kbd> 이동</span><span><kbd>E</kbd> 말 걸기·몬스터 교체</span><span><kbd>M</kbd> 지도</span><span><kbd>B</kbd> 가방</span><span><kbd>F</kbd> 배틀 신청</span><span><kbd>X</kbd> 전체 화면</span><span><kbd>O</kbd> 친구·길드</span><span><kbd>ESC</kbd> 메뉴·서버 연결</span></div>
+
+<div id="dialog" class="panel" hidden role="dialog" aria-live="polite"><div class="who" id="dlg-who"></div><div class="say" id="dlg-say"></div><div class="next">E 또는 탭해서 계속 ▸</div></div>
+
+<div id="modal" hidden><div class="mon-card panel" id="mon-card" role="dialog" aria-modal="true"></div></div>
+<div id="menu" hidden><div class="menu-card panel" role="dialog" aria-modal="true" aria-labelledby="menu-title">
+  <h2 id="menu-title">메뉴</h2>
+  <p id="menu-status"></p>
+  <button class="btn" id="menu-close" type="button">게임으로 돌아가기</button>
+  <button class="btn ghost" id="menu-bag" type="button">가방 (B)</button>
+  <button class="btn ghost" id="menu-full" type="button">전체 화면 (X)</button>
+  <button class="btn ghost" id="menu-install" type="button" hidden>앱으로 설치하는 법</button>
+  <button class="btn black" id="menu-net" type="button">서버 연결</button>
+  <button class="btn ghost" id="menu-logout" type="button">로그아웃</button>
+</div></div>
+<div id="toast" class="panel" hidden></div>
+
+<div id="battle" hidden>
+  <canvas id="bcv"></canvas>
+  <div class="bpanel">
+    <div id="blog" aria-live="polite"></div>
+    <div id="bmoves"></div>
+    <div id="bswitch" hidden></div>
+    <div id="bopts"><button id="b-tame" class="tame" type="button">테이밍 (T)</button><button id="b-bag" type="button">가방 (B)</button><button id="b-switch" type="button">교체 (C)</button><button id="b-run" type="button">도망 (R)</button></div>
+  </div>
+</div>
+<div id="learn" hidden><div class="learn-card panel" role="dialog" aria-modal="true"><h2 id="learn-title"></h2><p id="learn-sub"></p><div id="learn-list" style="display:grid;gap:8px"></div></div></div>
+<div id="wmap" hidden>
+  <header><h2>세계 지도</h2><button class="btn ghost" id="wm-close" type="button" style="padding:8px 14px;font-size:15px">닫기 (M)</button></header>
+  <canvas id="wmc"></canvas>
+  <div class="wm-legend" id="wm-legend"></div>
+</div>
+
+<div id="touch" hidden><div id="stick" hidden><div id="knob"></div></div></div>
+<div id="act" hidden><button id="btn-m" type="button">M<br>지도</button><button id="btn-e" type="button">E<br>교체</button><button id="btn-f" type="button" hidden>F<br>배틀</button></div>
+
+<script>
+"use strict";
+/* older Safari (macOS 12 and earlier) has no canvas roundRect */
+if(window.CanvasRenderingContext2D&&!CanvasRenderingContext2D.prototype.roundRect){
+  CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h,r){r=Math.min(typeof r==="number"?r:0,w/2,h/2);
+    this.moveTo(x+r,y);this.arcTo(x+w,y,x+w,y+h,r);this.arcTo(x+w,y+h,x,y+h,r);this.arcTo(x,y+h,x,y,r);this.arcTo(x,y,x+w,y,r);this.closePath();return this};
+}
+
+/* =====================================================================
+   DATA — types, moves, species, learnsets, gyms, levels
+   ===================================================================== */
+const COLORS = ["#e2524a","#3b7dd8","#f0a830","#8a5cd1","#2fa89a","#e36fa8"];
+const PROF_NAME = "한결 박사";
+
+const TYPES={
+  normal:{name:"노말",color:"#c8b89a"}, grass:{name:"풀",color:"#5cc65a"}, bug:{name:"벌레",color:"#a6c934"},
+  fire:{name:"불",color:"#ff7a3d"}, water:{name:"물",color:"#4aa8ff"}, dragon:{name:"드래곤",color:"#8a6be0"}, fighting:{name:"격투",color:"#d0573c"},
+};
+// attacker type -> defender type -> multiplier (missing = 1)
+const CHART={
+  grass:{water:2,fire:.5,grass:.5,bug:.5,dragon:.5},
+  bug:{grass:2,fire:.5,fighting:.5},
+  fire:{grass:2,bug:2,water:.5,fire:.5,dragon:.5},
+  water:{fire:2,water:.5,grass:.5,dragon:.5},
+  dragon:{dragon:2},
+  fighting:{normal:2,bug:.5},
+  normal:{},
+};
+const SPECIAL_TYPES=new Set(["fire","water","grass","dragon"]);
+const CAT_OVERRIDE={vine:"p",wheel:"p",claw:"p",dtail:"p",crown:"s",dust:"s",blade:"p",horn:"p",tailfire:"p",bubble:"s"};
+const effOf=(atk,def)=>(CHART[atk]&&CHART[atk][def])||1;
+
+/* kind: atk | heal (frac of max HP) | buff/debuff (stat, stages) ; prio: goes first */
+const MOVES={
+  tackle:{n:"박치기",t:"normal",p:40,a:100},
+  scratch:{n:"할퀴기",t:"normal",p:40,a:100},
+  quick:{n:"재빠른돌진",t:"normal",p:40,a:100,prio:1},
+  focus:{n:"힘모으기",t:"normal",kind:"buff",stat:"atk",st:1},
+  rest:{n:"숨고르기",t:"normal",kind:"heal",frac:.35},
+  bodyhit:{n:"몸통부딪치기",t:"normal",p:55,a:100},
+  headbutt:{n:"머리찧기",t:"normal",p:70,a:100},
+  slam:{n:"온몸던지기",t:"normal",p:85,a:90},
+  giga:{n:"기가충돌",t:"normal",p:110,a:85},
+  guard:{n:"철벽자세",t:"fighting",kind:"buff",stat:"def",st:1},
+  blur:{n:"잔상",t:"normal",kind:"buff",stat:"eva",st:1},
+  awaken:{n:"각성",t:"normal",kind:"buff",stat:"atk",st:2,also:["spe",1],sp:"특수"},
+  // grass
+  leaf:{n:"잎사귀날리기",t:"grass",p:45,a:100}, vine:{n:"덩굴채찍",t:"grass",p:55,a:100}, sun:{n:"햇빛모으기",t:"grass",kind:"heal",frac:.4},
+  petal:{n:"꽃잎소용돌이",t:"grass",p:80,a:100}, forest:{n:"숲의분노",t:"grass",p:110,a:85}, bloom:{n:"만개",t:"grass",p:120,a:90},
+  // bug
+  bite:{n:"깨물기",t:"bug",p:50,a:100}, web:{n:"끈끈실",t:"bug",kind:"debuff",stat:"spe",st:1}, sting:{n:"독침찌르기",t:"bug",p:60,a:100},
+  wing:{n:"날개베기",t:"bug",p:75,a:100}, swarm:{n:"군단돌격",t:"bug",p:100,a:90}, crown:{n:"곤충의왕관",t:"bug",p:115,a:85},
+  // fire
+  ember:{n:"불티",t:"fire",p:40,a:100}, wheel:{n:"불꽃구르기",t:"fire",p:60,a:100}, heatup:{n:"열기충전",t:"fire",kind:"buff",stat:"atk",st:1},
+  breath:{n:"화산숨결",t:"fire",p:90,a:100}, nova:{n:"태양폭발",t:"fire",p:115,a:85}, inferno:{n:"불꽃폭풍",t:"fire",p:120,a:85},
+  // water
+  splash:{n:"물방울튀기기",t:"water",p:40,a:100}, jet:{n:"물줄기",t:"water",p:60,a:100}, mist:{n:"물안개",t:"water",kind:"heal",frac:.3},
+  wave:{n:"해일",t:"water",p:90,a:100}, abyss:{n:"심해포",t:"water",p:115,a:85}, whirl:{n:"소용돌이",t:"water",p:120,a:85},
+  // dragon
+  dbreath:{n:"용의입김",t:"dragon",p:60,a:100}, dance:{n:"용의춤",t:"dragon",kind:"buff",stat:"atk",st:1,also:["spe",1]},
+  claw:{n:"비늘발톱",t:"dragon",p:80,a:100}, dtail:{n:"용꼬리",t:"dragon",p:90,a:95}, pulse:{n:"용의파동",t:"dragon",p:100,a:100}, meteor:{n:"유성낙하",t:"dragon",p:130,a:85},
+  // fighting
+  punch:{n:"정권",t:"fighting",p:50,a:100}, kick:{n:"돌려차기",t:"fighting",p:65,a:100}, combo:{n:"연타권",t:"fighting",p:85,a:100},
+  upper:{n:"올려치기",t:"fighting",p:95,a:95}, burst:{n:"기합폭발",t:"fighting",p:120,a:85},
+  // signature (고유 기술) — each species learns its own at Lv30
+  tide:{n:"물결가르기",t:"water",p:95,a:100,sp:"고유"}, foxfire:{n:"여우불꽃",t:"fire",p:95,a:100,sp:"고유"}, sprout:{n:"새싹폭풍",t:"grass",p:95,a:100,sp:"고유"},
+  hop:{n:"깡총돌진",t:"normal",p:70,a:100,prio:1,sp:"고유"}, blade:{n:"잎새칼날",t:"grass",p:90,a:100,sp:"고유"}, horn:{n:"뿔박치기",t:"bug",p:90,a:100,sp:"고유"},
+  dust:{n:"인분가루",t:"bug",p:70,a:100,sp:"고유",lower:["atk",1]}, tailfire:{n:"불씨꼬리",t:"fire",p:90,a:100,sp:"고유"}, lava:{n:"용암분출",t:"fire",p:110,a:90,sp:"고유"},
+  bubble:{n:"거품폭탄",t:"water",p:80,a:100,sp:"고유",lower:["spe",1]}, roar:{n:"어린용의포효",t:"dragon",p:90,a:100,sp:"고유"}, sky:{n:"천공비늘",t:"dragon",p:120,a:90,sp:"고유"},
+  fist:{n:"불굴의주먹",t:"fighting",p:100,a:100,sp:"고유"}, tornado:{n:"회오리발차기",t:"fighting",p:110,a:95,sp:"고유"},
+  // special (특수 기술) — type ultimate at Lv75
+  u_normal:{n:"무한돌진",t:"normal",p:130,a:90,sp:"특수"}, u_grass:{n:"세계수의힘",t:"grass",p:140,a:90,sp:"특수"}, u_bug:{n:"대군단의진격",t:"bug",p:140,a:90,sp:"특수"},
+  u_fire:{n:"겁화",t:"fire",p:140,a:90,sp:"특수"}, u_water:{n:"대해일",t:"water",p:140,a:90,sp:"특수"}, u_dragon:{n:"용왕의분노",t:"dragon",p:150,a:85,sp:"특수"}, u_fighting:{n:"천지개벽권",t:"fighting",p:140,a:90,sp:"특수"},
+};
+const TYPE_MOVES={
+  normal:["scratch","bodyhit","quick","headbutt","slam","giga"],
+  grass:["leaf","vine","sun","petal","forest","bloom"],
+  bug:["bite","web","sting","wing","swarm","crown"],
+  fire:["ember","wheel","heatup","breath","nova","inferno"],
+  water:["splash","jet","mist","wave","abyss","whirl"],
+  dragon:["dbreath","dance","claw","dtail","pulse","meteor"],
+  fighting:["punch","kick","guard","combo","upper","burst"],
+};
+function makeLearnset(type,sig){
+  const T=TYPE_MOVES[type];
+  return [[1,"tackle"],[1,T[0]],[5,"focus"],[9,T[1]],[14,"quick"],[20,T[2]],[26,"rest"],[30,sig],[38,T[3]],[46,"slam"],[50,"blur"],[55,T[4]],[65,"guard"],[75,"u_"+type],[88,T[5]],[99,"awaken"]]
+    .filter((e,i,a)=>a.findIndex(x=>x[1]===e[1])===i);
+}
+
+const SPECIES={
+  raki:{name:"라키",type:"water",base:{hp:48,atk:44,def:52,spa:58,sdf:56,spe:50},xp:62,sig:"tide",
+    desc:"작은 지느러미로 물 위를 미끄러지듯 다녀요. 차분하고 영리해서 상대의 움직임을 잘 읽어요."},
+  puhwa:{name:"푸화",type:"fire",base:{hp:42,atk:56,def:40,spa:60,sdf:44,spe:58},xp:62,sig:"foxfire",
+    desc:"꼬리 끝의 불꽃이 기분에 따라 커졌다 작아졌다 해요. 성격은 급하지만 한번 친해지면 의리가 넘쳐요."},
+  poi:{name:"포이",type:"grass",base:{hp:55,atk:46,def:54,spa:52,sdf:58,spe:41},xp:62,sig:"sprout",
+    desc:"머리 위 새싹으로 햇빛을 모아요. 느긋해 보여도 한번 버티기 시작하면 좀처럼 쓰러지지 않아요."},
+  toto:{name:"토토",type:"normal",base:{hp:45,atk:45,def:40,spa:35,sdf:40,spe:55},xp:45,sig:"hop",desc:"긴 귀로 멀리서 나는 소리도 들어요. 마을 근처 들판에 가장 흔해요."},
+  lifto:{name:"리프토",type:"grass",base:{hp:44,atk:52,def:46,spa:50,sdf:46,spe:58},xp:52,sig:"blade",desc:"잎사귀 귀를 펄럭이며 풀숲을 빠르게 달려요."},
+  mudi:{name:"무디",type:"bug",base:{hp:50,atk:62,def:66,spa:30,sdf:45,spe:35},xp:58,sig:"horn",desc:"단단한 등껍질과 뿔을 가진 숲의 장수풍뎅이 몬스터예요."},
+  nabi:{name:"나비린",type:"bug",base:{hp:42,atk:35,def:40,spa:65,sdf:55,spe:70},xp:55,sig:"dust",desc:"반짝이는 날개 가루로 상대를 약하게 만들어요."},
+  bulssi:{name:"불씨개",type:"fire",base:{hp:46,atk:58,def:42,spa:52,sdf:40,spe:60},xp:56,sig:"tailfire",desc:"꼬리에 꺼지지 않는 불씨를 달고 다니는 강아지 몬스터예요."},
+  hwaro:{name:"화로롱",type:"fire",base:{hp:60,atk:64,def:58,spa:72,sdf:56,spe:45},xp:72,sig:"lava",desc:"화산 바위 틈에 사는 도마뱀. 등의 가시가 뜨겁게 달아올라요."},
+  bogeul:{name:"보글이",type:"water",base:{hp:55,atk:40,def:56,spa:55,sdf:60,spe:45},xp:52,sig:"bubble",desc:"말랑한 몸에서 끊임없이 거품이 보글보글 올라와요."},
+  draco:{name:"드라코",type:"dragon",base:{hp:52,atk:64,def:54,spa:62,sdf:54,spe:56},xp:75,sig:"roar",desc:"작은 날개로 아직 서툴게 나는 어린 용이에요."},
+  yongrin:{name:"용린",type:"dragon",base:{hp:68,atk:78,def:66,spa:82,sdf:70,spe:62},xp:95,sig:"sky",desc:"높은 산에만 사는 전설 같은 용. 비늘이 하늘빛으로 빛나요."},
+  jumeok:{name:"주먹이",type:"fighting",base:{hp:58,atk:72,def:50,spa:35,sdf:46,spe:52},xp:66,sig:"fist",desc:"커다란 주먹 장갑으로 바위도 깨는 꼬마 권투가예요."},
+  taekwon:{name:"태권몽",type:"fighting",base:{hp:62,atk:78,def:56,spa:40,sdf:52,spe:66},xp:80,sig:"tornado",desc:"머리띠를 질끈 묶고 발차기를 연습하는 수련생이에요."},
+};
+for(const id in SPECIES){const s=SPECIES[id];s.id=id;s.learn=makeLearnset(s.type,s.sig);s.hex=TYPES[s.type].color}
+// starter card extras (tutorial)
+Object.assign(SPECIES.raki,{el:"물",color:"var(--water)",stats:{체력:48,공격:44,방어:52,속도:50},strong:"불",weak:"풀"});
+Object.assign(SPECIES.puhwa,{el:"불",color:"var(--fire)",stats:{체력:42,공격:56,방어:40,속도:58},strong:"풀",weak:"물"});
+Object.assign(SPECIES.poi,{el:"풀",color:"var(--grass)",stats:{체력:55,공격:46,방어:54,속도:41},strong:"물",weak:"불"});
+const MONS=SPECIES; // older code reads MONS[...]
+
+/* ---- levels, stats, individual values ---- */
+const MAX_LV=99;
+const STAT_KEYS=["hp","atk","def","spa","sdf","spe","eva"];
+const STAT_NAME={hp:"체력",atk:"공격",def:"방어",spa:"특수공격",sdf:"특수방어",spe:"스피드",eva:"회피"};
+const xpNeed=(L)=>Math.round(8*L+0.6*L*L);                       // xp to go from L to L+1
+/* stat = ((2×base + 개체값) × Lv / 100) + 5 ;  특수 개체는 모든 능력치 +15% */
+function monStats(m){
+  const b=SPECIES[m.sp].base,iv=m.iv||{},L=m.lv,k=m.special?1.15:1,o={};
+  for(const s of ["atk","def","spa","sdf","spe"])o[s]=Math.floor((Math.floor((2*b[s]+(iv[s]|0))*L/100)+5)*k);
+  o.hp=Math.floor((Math.floor((2*b.hp+(iv.hp|0))*L/100)+L+10)*k);
+  o.eva=Math.round(((iv.eva|0)/31*5+(m.special?4:0))*10)/10;  // % chance to dodge
+  return o;
+}
+function ivTotal(m){let t=0;for(const k of STAT_KEYS)t+=(m.iv&&m.iv[k])|0;return t}
+function ivGrade(m){const r=ivTotal(m)/(31*STAT_KEYS.length);return r>=.9?"S":r>=.75?"A":r>=.5?"B":r>=.3?"C":"D"}
+const moveCat=(id)=>{const M=MOVES[id];return CAT_OVERRIDE[id]||(SPECIAL_TYPES.has(M.t)?"s":"p")};
+function movesKnownAt(sp,lv){ // the 4 most recent moves learnable by this level
+  const list=SPECIES[sp].learn.filter(e=>e[0]<=lv).map(e=>e[1]);
+  return list.slice(-4);
+}
+/* rnd: () => [0,1). Rare "특수 개체" (1/300) has near-perfect values and +15% stats; 이로치 (1/256) has different colors. */
+function rollIVs(rnd,forceSpecial){
+  const special=forceSpecial||rnd()<1/300,iv={};
+  for(const k of STAT_KEYS)iv[k]=special?28+Math.floor(rnd()*4):Math.floor(rnd()*32);
+  return{iv,special};
+}
+function newMon(sp,lv,opt={}){
+  lv=Math.max(1,Math.min(MAX_LV,lv|0));
+  const rnd=opt.rnd||Math.random,{iv,special}=rollIVs(rnd,opt.special);
+  const m={sp,lv,xp:0,moves:movesKnownAt(sp,lv),iv,special,shiny:opt.shiny!=null?opt.shiny:rnd()<1/256,uid:Math.random().toString(36).slice(2,9)};
+  if(opt.extraMove&&!m.moves.includes(opt.extraMove)){if(m.moves.length>=4)m.moves[m.moves.length-1]=opt.extraMove;else m.moves.push(opt.extraMove)}
+  m.hp=monStats(m).hp;return m;
+}
+const seededRnd=(seed)=>{let i=0;return()=>hash(i++,seed.length,[...seed].reduce((a,c)=>a*31+c.charCodeAt(0)|0,7))};
+
+/* ---- gyms: farther from town = stronger ---- */
+const GYMS=[
+  {id:"g1",type:"grass",   lv:10,leader:"새봄",tx:100, ty:30,  team:[["lifto",9],["poi",11]]},
+  {id:"g2",type:"bug",     lv:20,leader:"나린",tx:40,  ty:165, team:[["nabi",18],["mudi",19],["nabi",21]]},
+  {id:"g3",type:"fire",    lv:30,leader:"화진",tx:-170,ty:30,  team:[["bulssi",28],["puhwa",29],["hwaro",31]]},
+  {id:"g4",type:"water",   lv:40,leader:"해솔",tx:40,  ty:-255,team:[["bogeul",38],["raki",39],["bogeul",41]]},
+  {id:"g5",type:"dragon",  lv:50,leader:"용호",tx:295, ty:-225,team:[["draco",48],["draco",49],["yongrin",51]]},
+  {id:"g6",type:"fighting",lv:60,leader:"강철",tx:-268,ty:338, team:[["jumeok",58],["taekwon",59],["taekwon",61]]},
+];
+for(const g of GYMS){g.name=`${TYPES[g.type].name} 체육관`;g.color=TYPES[g.type].color}
+const BIOME_POOLS={
+  meadow:[["toto",6],["lifto",3],["bogeul",1]],
+  grass:[["lifto",5],["toto",3],["poi",1]],
+  bug:[["mudi",4],["nabi",4],["lifto",1]],
+  fire:[["bulssi",5],["hwaro",2],["puhwa",1]],
+  water:[["bogeul",6],["raki",1],["toto",1]],
+  dragon:[["draco",6],["yongrin",1]],
+  fighting:[["jumeok",5],["taekwon",3]],
+};
+
+/* ---- items ---- */
+const ITEMS={
+  ball:{n:"테이밍 볼",price:200,rate:1,kind:"ball",desc:"야생 몬스터를 테이밍할 때 꼭 필요해요."},
+  superball:{n:"슈퍼 볼",price:600,rate:1.7,kind:"ball",desc:"테이밍 성공률이 1.7배예요."},
+  hyperball:{n:"하이퍼 볼",price:1500,rate:2.5,kind:"ball",desc:"테이밍 성공률이 2.5배예요. 보스에게 추천!"},
+  potion:{n:"상처약",price:300,heal:50,kind:"heal",desc:"몬스터 한 마리의 체력을 50 회복해요."},
+  superpotion:{n:"고급 상처약",price:900,heal:99999,kind:"heal",desc:"몬스터 한 마리의 체력을 모두 회복해요."},
+};
+const START_GOLD=1000, START_BAG={ball:5,potion:3};
+
+/* =====================================================================
+   INFINITE WORLD — generated in 16x16-tile chunks as you explore.
+   Same seed everywhere, so every player sees the same world.
+   ===================================================================== */
+const TS=32, CH=16;
+const T={GRASS:0,TALL:1,PATH:2,WATER:3,SAND:4,TREE:5,PLAZA:6,FLOWER:7,HOUSE:8,FOUNTAIN:9,PEDESTAL:10,BRIDGE:11,ROCK:12,LAVA:13,CRYSTAL:14,GYM:15,GYMFLOOR:16,MUSH:17,HEAL:19,SHOP:20};
+const SOLID=new Set([T.WATER,T.TREE,T.HOUSE,T.FOUNTAIN,T.PEDESTAL,T.ROCK,T.LAVA,T.CRYSTAL,T.GYM,T.HEAL,T.SHOP]);
+function hash(x,y,s=0){let h=(Math.imul(x|0,374761393)+Math.imul(y|0,668265263)+Math.imul(s|0,2246822519))|0;h=Math.imul(h^(h>>>13),1274126177);return((h^(h>>>16))>>>0)/4294967296}
+function vnoise(x,y,s){const xi=Math.floor(x),yi=Math.floor(y),xf=x-xi,yf=y-yi,u=xf*xf*(3-2*xf),v=yf*yf*(3-2*yf);
+  const a=hash(xi,yi,s),b=hash(xi+1,yi,s),c=hash(xi,yi+1,s),d=hash(xi+1,yi+1,s);return a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v}
+function fbm(x,y,s){return vnoise(x,y,s)*0.65+vnoise(x*2.1,y*2.1,s+17)*0.35}
+
+const TOWN={x0:24,y0:17,x1:56,y1:43,cx:40,cy:30}, PLAZA={x0:34,y0:24,x1:46,y1:35};
+const HOUSES=[{x:27,y:19,w:5,h:4,roof:"#c4523f"},{x:49,y:19,w:5,h:4,roof:"#3f6fc4"},{x:27,y:38,w:5,h:4,roof:"#6a9a3c"},{x:49,y:38,w:5,h:4,roof:"#a65fb5"}];
+const PEDESTALS=[{kind:"raki",tx:37,ty:27},{kind:"puhwa",tx:40,ty:27},{kind:"poi",tx:43,ty:27}];
+const PROF={x:40.5*TS,y:25.6*TS};
+const SPAWN={x:40.5*TS,y:34.3*TS};
+const FOUNTAIN={x:40.5*TS,y:31.5*TS};
+const inTown=(x,y)=>x>=TOWN.x0&&x<=TOWN.x1&&y>=TOWN.y0&&y<=TOWN.y1;
+const isRoad=(x,y)=>y===29||y===30||(x>=39&&x<=41);
+
+/* ---- regions ---- */
+const BIOMES=["meadow","grass","bug","fire","water","dragon","fighting"];
+const townDist=(tx,ty)=>Math.hypot(tx-TOWN.cx,ty-TOWN.cy);
+function gymZone(tx,ty){
+  const j=(fbm(tx/14,ty/14,31)-0.5)*26;
+  for(const g of GYMS){if(Math.hypot(tx-g.tx,ty-g.ty)+j<58)return g}
+  return null;
+}
+function biomeAt(tx,ty){
+  const g=gymZone(tx,ty);if(g)return g.type;
+  const d=townDist(tx,ty);
+  if(d<48)return "meadow";
+  if(d<95)return fbm(tx/30,ty/30,61)>0.55?"grass":"meadow"; // gentle beginner area
+  const jx=(fbm(tx/34,ty/34,41)-0.5)*90,jy=(fbm(tx/34,ty/34,43)-0.5)*90;
+  return BIOMES[Math.floor(hash(Math.floor((tx+jx)/120),Math.floor((ty+jy)/120),99)*BIOMES.length)];
+}
+/* wild level grows with distance from town: gym Lv10 ≈ 60 tiles, Lv60 ≈ 435 tiles */
+const levelAt=(tx,ty)=>Math.max(2,Math.min(MAX_LV,Math.round(2+townDist(tx,ty)/7.5)));
+
+function terrain(tx,ty,b){
+  const n=fbm(tx/9,ty/9,1),w=fbm(tx/11,ty/11,7),g=fbm(tx/6,ty/6,3),h=hash(tx,ty,9),h5=hash(tx,ty,5);
+  switch(b){
+    case"grass":   if(w<.27)return T.WATER;if(n>.72)return T.TREE;if(g>.5)return T.TALL;if(h<.08)return T.FLOWER;return T.GRASS;
+    case"bug":     if(w<.26)return T.WATER;if(n>.55)return T.TREE;if(n>.47&&h5<.35)return T.TREE;if(h<.05)return T.MUSH;if(g>.48)return T.TALL;return T.GRASS;
+    case"fire":    if(w<.32)return T.LAVA;if(n>.66)return T.ROCK;if(h5<.05)return T.ROCK;if(g>.62)return T.TALL;return T.GRASS;
+    case"water":   if(w<.44)return T.WATER;if(n>.7)return T.TREE;if(g>.62)return T.TALL;if(h<.03)return T.FLOWER;return T.GRASS;
+    case"dragon":  if(w<.25)return T.WATER;if(n>.6)return T.ROCK;if(h<.03)return T.CRYSTAL;if(g>.6)return T.TALL;return T.GRASS;
+    case"fighting":if(w<.24)return T.WATER;if(n>.7)return T.ROCK;if(h5<.06)return T.ROCK;if(g>.6)return T.TALL;return T.GRASS;
+    default:       if(w<.3)return T.WATER;if(n>.68)return T.TREE;if(n>.56&&h5<.3)return T.TREE;if(g>.58)return T.TALL;if(h<.035)return T.FLOWER;return T.GRASS;
+  }
+}
+function gymTile(tx,ty){
+  for(const g of GYMS){
+    if(Math.abs(tx-g.tx)<=7&&ty>=g.ty-9&&ty<=g.ty+3){
+      if(tx>=g.tx-3&&tx<=g.tx+3&&ty>=g.ty-5&&ty<=g.ty-1)return T.GYM;
+      return T.GYMFLOOR;
+    }
+  }
+  return -1;
+}
+function townTile(tx,ty){
+  for(const p of PEDESTALS)if(p.tx===tx&&p.ty===ty)return T.PEDESTAL;
+  if(tx>=39&&tx<=41&&ty>=30&&ty<=32)return T.FOUNTAIN;
+  for(const h of HOUSES){
+    if(tx>=h.x&&tx<h.x+h.w&&ty>=h.y&&ty<h.y+h.h)return T.HOUSE;
+    if(tx===h.x+2&&(h.y<29?(ty>=h.y+h.h&&ty<29):(ty>=31&&ty<h.y)))return T.PATH;
+  }
+  if(tx>=PLAZA.x0&&tx<=PLAZA.x1&&ty>=PLAZA.y0&&ty<=PLAZA.y1)return T.PLAZA;
+  if(isRoad(tx,ty))return T.PATH;
+  return hash(tx,ty,9)<0.03?T.FLOWER:T.GRASS;
+}
+/* ---- rest stops: a healing center + a shop, along roads, by gyms and out in the wild ---- */
+const nearGym=(x,y,r)=>GYMS.some(g=>Math.hypot(x-g.tx,y-g.ty)<r);
+function makePlot(id,x0,y0,heal,shop){return{id,x0,y0,x1:x0+13,y1:y0+(heal.y-y0)+4+((id[0]==="h"||id[0]==="g")?4:4),heal,shop}}
+function plotAt(tx,ty){
+  // along the east-west road (north side)
+  if(ty>=20&&ty<=28){const k=Math.round((tx-40)/50),cx=40+50*k;
+    if(k!==0&&tx>=cx-7&&tx<=cx+6&&!nearGym(cx,24,32))return{id:"h"+k,x0:cx-7,y0:20,x1:cx+6,y1:28,heal:{x:cx-6,y:21},shop:{x:cx+1,y:21}}}
+  // along the north-south road (east side)
+  if(tx>=42&&tx<=55){const k=Math.round((ty-30)/50),cy=30+50*k;
+    if(k!==0&&ty>=cy-5&&ty<=cy+3&&!nearGym(48,cy,32))return{id:"v"+k,x0:42,y0:cy-5,x1:55,y1:cy+3,heal:{x:43,y:cy-4},shop:{x:50,y:cy-4}}}
+  // next to every gym
+  for(const g of GYMS)if(tx>=g.tx-21&&tx<=g.tx-8&&ty>=g.ty-6&&ty<=g.ty+2)return{id:"g"+g.id,x0:g.tx-21,y0:g.ty-6,x1:g.tx-8,y1:g.ty+2,heal:{x:g.tx-20,y:g.ty-5},shop:{x:g.tx-14,y:g.ty-5}};
+  // scattered across the open world
+  const C=130,gx=Math.floor(tx/C),gy=Math.floor(ty/C);
+  const ox=gx*C+30+Math.floor(hash(gx,gy,811)*70),oy=gy*C+30+Math.floor(hash(gx,gy,823)*70);
+  if(tx>=ox-7&&tx<=ox+6&&ty>=oy-4&&ty<=oy+4&&townDist(ox,oy)>80&&!nearGym(ox,oy,45)&&Math.abs(oy-30)>14&&Math.abs(ox-40)>18)
+    return{id:`w${gx}_${gy}`,x0:ox-7,y0:oy-4,x1:ox+6,y1:oy+4,heal:{x:ox-6,y:oy-3},shop:{x:ox+1,y:oy-3}};
+  return null;
+}
+function plotTile(p,tx,ty){
+  for(const [b,t] of [[p.heal,T.HEAL],[p.shop,T.SHOP]])if(tx>=b.x&&tx<b.x+5&&ty>=b.y&&ty<b.y+4)return t;
+  return T.PLAZA;
+}
+const plotDoors=(p)=>[{kind:"heal",x:(p.heal.x+2.5)*TS,y:(p.heal.y+4)*TS+14},{kind:"shop",x:(p.shop.x+2.5)*TS,y:(p.shop.y+4)*TS+14}];
+function baseTile(tx,ty){
+  if(inTown(tx,ty))return townTile(tx,ty);
+  const gt=gymTile(tx,ty);if(gt>=0)return gt;
+  const pl=plotAt(tx,ty);if(pl)return plotTile(pl,tx,ty);
+  const t=terrain(tx,ty,biomeAt(tx,ty));
+  if(isRoad(tx,ty))return(t===T.WATER||t===T.LAVA)?T.BRIDGE:T.PATH;
+  return t;
+}
+
+/* ---- chunk cache ---- */
+const chunks=new Map();let chunkClock=0,chunkCanvases=0;
+function getChunk(cx,cy){
+  const key=cx+","+cy;let c=chunks.get(key);
+  if(c){c.used=chunkClock;return c}
+  const W=CH+2,base=new Uint8Array(W*W),x0=cx*CH-1,y0=cy*CH-1;
+  for(let j=0;j<W;j++)for(let i=0;i<W;i++)base[j*W+i]=baseTile(x0+i,y0+j);
+  const tiles=new Uint8Array(CH*CH);
+  for(let j=0;j<CH;j++)for(let i=0;i<CH;i++){
+    let t=base[(j+1)*W+i+1];
+    if(t===T.GRASS||t===T.TALL||t===T.FLOWER||t===T.MUSH){ // shores
+      let near=false;for(let b=0;b<3&&!near;b++)for(let a=0;a<3;a++){const u=base[(j+b)*W+i+a];if(u===T.WATER||u===T.LAVA){near=true;break}}
+      if(near)t=T.SAND;
+    }
+    tiles[j*CH+i]=t;
+  }
+  c={cx,cy,tiles,canvas:null,used:chunkClock};chunks.set(key,c);
+  if(chunks.size>2500){ // forget far chunks
+    const list=[...chunks.values()].sort((a,b)=>a.used-b.used);
+    for(const o of list.slice(0,800)){if(o.canvas)chunkCanvases--;chunks.delete(o.cx+","+o.cy)}
+  }
+  return c;
+}
+function tileAt(tx,ty){const cx=Math.floor(tx/CH),cy=Math.floor(ty/CH);return getChunk(cx,cy).tiles[(ty-cy*CH)*CH+(tx-cx*CH)]}
+const at=tileAt;
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+function blocked(x,y){
+  for(const [px,py] of [[x-8,y-4],[x+8,y-4],[x-8,y+3],[x+8,y+3]])
+    if(SOLID.has(tileAt(Math.floor(px/TS),Math.floor(py/TS))))return true;
+  return Math.hypot(x-PROF.x,y-PROF.y)<12;
+}
+
+/* ---- painting ---- */
+const PAL={
+  meadow:{g:"#79b85a",s:"#6aa64e",h:"#8cc96a",tall:"#5f9e45",bl:"#4b8636",tip:"#8fd06a",tree:["#2f7a3e","#3f9450","#58ad5f"],trunk:"#6b4a2e",sand:"#e5d095",sands:"#d4bd7f"},
+  grass:{g:"#86c95c",s:"#74b64d",h:"#a2dc78",tall:"#6aae48",bl:"#4f9038",tip:"#a8e07a",tree:["#3a8a3a","#4ea64c","#6cc060"],trunk:"#6b4a2e",sand:"#e8d59c",sands:"#d6c184"},
+  bug:{g:"#5d9447",s:"#4f8240",h:"#6fa656",tall:"#4a7f39",bl:"#3a6a2c",tip:"#79b05a",tree:["#1f5a30","#2b7040","#3d8a4c"],trunk:"#4f3620",sand:"#cdbb86",sands:"#b9a774"},
+  fire:{g:"#6e5146",s:"#5c4238",h:"#83604f",tall:"#7d6a3c",bl:"#5e4e2a",tip:"#b39a52",tree:["#5a4a2a","#6e5c33","#857040"],trunk:"#3f2c20",sand:"#4f403a",sands:"#41342f"},
+  water:{g:"#7cc06a",s:"#6aac5a",h:"#94d27e",tall:"#5fa550",bl:"#4b8a40",tip:"#9ad882",tree:["#2f7a4e","#3f945f","#58ad72"],trunk:"#6b4a2e",sand:"#efdca4",sands:"#dcc88c"},
+  dragon:{g:"#8a8f96",s:"#7a7f86",h:"#9ca1a8",tall:"#6f8a6a",bl:"#55704f",tip:"#8fae86",tree:["#2e5e48","#3c7258","#4f8a6c"],trunk:"#4a3a2e",sand:"#b8b2a6",sands:"#a49e92"},
+  fighting:{g:"#c9a56b",s:"#b8955d",h:"#d8b77e",tall:"#a89a4f",bl:"#857a3a",tip:"#cfc06a",tree:["#5f7a2e","#76923a","#8eaa48"],trunk:"#5a3f26",sand:"#e0c890",sands:"#cdb47a"},
+};
+function paintChunk(c){
+  const cv=document.createElement("canvas");cv.width=cv.height=CH*TS;
+  const g=cv.getContext("2d"),ox=c.cx*CH,oy=c.cy*CH;
+  const fill=(col,x,y,w,h)=>{g.fillStyle=col;g.fillRect(x,y,w,h)};
+  for(let j=0;j<CH;j++)for(let i=0;i<CH;i++){
+    const tx=ox+i,ty=oy+j,t=c.tiles[j*CH+i],x=i*TS,y=j*TS,r=(k)=>hash(tx,ty,k);
+    const P=PAL[biomeAt(tx,ty)]||PAL.meadow;
+    const grassBase=()=>{fill(P.g,x,y,TS,TS);for(let k=0;k<5;k++)fill(P.s,x+((r(k)*30)|0),y+((r(k+9)*30)|0),2,2);if(r(40)<.3)fill(P.h,x+((r(41)*28)|0),y+((r(42)*28)|0),3,2)};
+    switch(t){
+      case T.GRASS:case T.TREE:case T.HOUSE:case T.ROCK:case T.CRYSTAL:grassBase();break;
+      case T.HEAL:case T.SHOP:fill("#c9c3b5",x,y,TS,TS);break;
+      case T.FLOWER:grassBase();{const cs=["#ffffff","#ffd84a","#ff8fb1","#b78cff"];for(let k=0;k<3;k++){const fx=x+6+((r(k+20)*20)|0),fy=y+6+((r(k+30)*20)|0);fill(P.bl,fx+1,fy+2,1,4);fill(cs[(r(k+50)*4)|0],fx,fy,3,3)}}break;
+      case T.MUSH:grassBase();for(let k=0;k<2;k++){const fx=x+6+((r(k+20)*18)|0),fy=y+8+((r(k+30)*16)|0);fill("#efe6d0",fx+2,fy+3,3,5);fill("#d8463c",fx,fy,7,4);fill("#fff",fx+2,fy+1,1,1)}break;
+      case T.TALL:fill(P.tall,x,y,TS,TS);for(let k=0;k<7;k++){const bx=x+2+((r(k)*26)|0),by=y+8+((r(k+7)*20)|0);fill(P.bl,bx,by-6,2,8);fill(P.bl,bx+3,by-4,2,6);fill(P.tip,bx,by-7,2,2)}break;
+      case T.PATH:fill("#d9b77e",x,y,TS,TS);for(let k=0;k<4;k++)fill("#c49f66",x+((r(k)*29)|0),y+((r(k+5)*29)|0),3,2);break;
+      case T.SAND:fill(P.sand,x,y,TS,TS);for(let k=0;k<4;k++)fill(P.sands,x+((r(k)*30)|0),y+((r(k+5)*30)|0),2,2);break;
+      case T.WATER:fill("#3f8fd6",x,y,TS,TS);if(r(1)<.6)fill("#6cb3ec",x+((r(2)*18)|0)+4,y+((r(3)*22)|0)+4,8,2);if(r(4)<.35)fill("#6cb3ec",x+((r(5)*20)|0)+2,y+((r(6)*20)|0)+8,5,2);break;
+      case T.LAVA:fill("#c8401e",x,y,TS,TS);fill("#e8661e",x+((r(2)*14)|0)+3,y+((r(3)*16)|0)+3,12,6);if(r(4)<.5)fill("#ffb13a",x+((r(5)*20)|0)+4,y+((r(6)*20)|0)+6,4,3);break;
+      case T.BRIDGE:fill(t===T.BRIDGE&&biomeAt(tx,ty)==="fire"?"#c8401e":"#3f8fd6",x,y,TS,TS);fill("#a7774b",x,y+2,TS,TS-4);for(let k=0;k<4;k++)fill("#8a5f39",x+k*8,y+2,1,TS-4);fill("#6e4a2b",x,y+2,TS,2);fill("#6e4a2b",x,y+TS-4,TS,2);break;
+      case T.PLAZA:case T.FOUNTAIN:case T.PEDESTAL:case T.GYMFLOOR:case T.GYM:{
+        const base=t===T.GYMFLOOR||t===T.GYM?"#bfc4c9":"#c9c3b5",ln=t===T.GYMFLOOR||t===T.GYM?"#a9aeb4":"#b3ad9f";
+        fill(base,x,y,TS,TS);fill(ln,x,y,TS,1);fill(ln,x,y,1,TS);fill(ln,x+16,y+16,TS-16,1);fill(ln,x+((ty&1)?8:24),y+16,1,16);break}
+    }
+  }
+  // objects (include a 1-tile margin so canopies crossing the edge are drawn)
+  for(let j=-1;j<=CH;j++)for(let i=-1;i<=CH;i++){
+    const tx=ox+i,ty=oy+j,t=tileAt(tx,ty);
+    if(t!==T.TREE&&t!==T.ROCK&&t!==T.CRYSTAL)continue;
+    const P=PAL[biomeAt(tx,ty)]||PAL.meadow,cx=i*TS+16,cy=j*TS+14,s=0.9+hash(tx,ty,3)*0.25;
+    g.fillStyle="rgba(0,0,0,.18)";g.beginPath();g.ellipse(cx,j*TS+28,13,5,0,0,7);g.fill();
+    if(t===T.TREE){
+      fill(P.trunk,cx-3,j*TS+18,6,10);
+      g.fillStyle=P.tree[0];g.beginPath();g.arc(cx,cy,15*s,0,7);g.fill();
+      g.fillStyle=P.tree[1];g.beginPath();g.arc(cx-3,cy-3,11*s,0,7);g.fill();
+      g.fillStyle=P.tree[2];g.beginPath();g.arc(cx-6,cy-7,5*s,0,7);g.fill();
+    } else if(t===T.ROCK){
+      const dark=biomeAt(tx,ty)==="fire";
+      g.fillStyle=dark?"#3e3530":"#7d7a76";g.beginPath();g.ellipse(cx,cy+8,14*s,11*s,0,0,7);g.fill();
+      g.fillStyle=dark?"#55493f":"#9a9690";g.beginPath();g.ellipse(cx-3,cy+4,9*s,7*s,0,0,7);g.fill();
+      g.fillStyle=dark?"#6a5b4e":"#b5b1aa";g.beginPath();g.ellipse(cx-6,cy+1,4*s,3*s,0,0,7);g.fill();
+    } else {
+      for(const [dx,hgt,wd,col] of [[-6,16,6,"#7c5bd6"],[2,22,7,"#9b7cf0"],[8,13,5,"#6b4fc4"]]){
+        g.fillStyle=col;g.beginPath();g.moveTo(cx+dx-wd/2,cy+14);g.lineTo(cx+dx,cy+14-hgt);g.lineTo(cx+dx+wd/2,cy+14);g.closePath();g.fill();
+      }
+      fill("#d9cbff",cx+1,cy-4,2,6);
+    }
+  }
+  // buildings that overlap this chunk
+  g.save();g.translate(-ox*TS,-oy*TS);
+  const rx0=ox*TS-200,ry0=oy*TS-200,rx1=(ox+CH)*TS+200,ry1=(oy+CH)*TS+200;
+  const inR=(x,y)=>x>rx0&&x<rx1&&y>ry0&&y<ry1;
+  for(const h of HOUSES)if(inR(h.x*TS,h.y*TS))drawHouse(g,h);
+  if(inR(FOUNTAIN.x,FOUNTAIN.y))drawFountainBase(g);
+  for(const p of PEDESTALS)if(inR(p.tx*TS,p.ty*TS))drawPedestal(g,p);
+  for(const gy of GYMS)if(inR(gy.tx*TS,gy.ty*TS))drawGym(g,gy);
+  const seen=new Set();
+  for(let j=-8;j<=CH+8;j+=3)for(let i=-14;i<=CH+14;i+=3){const p=plotAt(ox+i,oy+j);if(p&&!seen.has(p.id)){seen.add(p.id);drawStop(g,p)}}
+  g.restore();
+  c.canvas=cv;chunkCanvases++;
+  if(chunkCanvases>64){ // free far canvases
+    const list=[...chunks.values()].filter(o=>o.canvas&&o!==c).sort((a,b)=>a.used-b.used);
+    for(const o of list.slice(0,16)){o.canvas=null;chunkCanvases--}
+  }
+  return cv;
+}
+function drawHouse(g,h){
+  const x=h.x*TS,y=h.y*TS,w=h.w*TS,hh=h.h*TS,fill=(c,a,b,cw,ch)=>{g.fillStyle=c;g.fillRect(a,b,cw,ch)};
+  g.fillStyle="rgba(0,0,0,.2)";g.fillRect(x+6,y+hh-6,w,10);
+  fill("#efe2c6",x+6,y+44,w-12,hh-44);fill("#d8c7a4",x+6,y+hh-8,w-12,8);
+  g.fillStyle=h.roof;g.beginPath();g.moveTo(x,y+52);g.lineTo(x+16,y+6);g.lineTo(x+w-16,y+6);g.lineTo(x+w,y+52);g.closePath();g.fill();
+  g.fillStyle="rgba(0,0,0,.18)";for(let i=0;i<4;i++)g.fillRect(x+6+i*2,y+18+i*9,w-12-i*4,2);
+  fill("#7a5233",x+w/2-10,y+hh-34,20,34);fill("#e7b847",x+w/2+5,y+hh-18,3,3);
+  for(const wx of [x+22,x+w-46]){fill("#5b84a8",wx,y+66,24,20);fill("#9cc4e4",wx+2,y+68,9,7);fill("#efe2c6",wx+11,y+66,2,20)}
+}
+function drawFountainBase(g){
+  const cx=FOUNTAIN.x,cy=FOUNTAIN.y;
+  g.fillStyle="rgba(0,0,0,.18)";g.beginPath();g.ellipse(cx,cy+8,48,30,0,0,7);g.fill();
+  g.fillStyle="#9a9384";g.beginPath();g.ellipse(cx,cy,48,34,0,0,7);g.fill();
+  g.fillStyle="#3f8fd6";g.beginPath();g.ellipse(cx,cy,40,27,0,0,7);g.fill();
+  g.fillStyle="#6cb3ec";g.beginPath();g.ellipse(cx-10,cy-6,14,5,0,0,7);g.fill();
+  g.fillStyle="#b3ad9f";g.beginPath();g.ellipse(cx,cy,12,8,0,0,7);g.fill();
+}
+function drawPedestal(g,p){
+  const cx=p.tx*TS+16,cy=p.ty*TS+20,c=SPECIES[p.kind].hex;
+  g.fillStyle="rgba(0,0,0,.2)";g.beginPath();g.ellipse(cx,cy+6,16,6,0,0,7);g.fill();
+  g.fillStyle="#8d8678";g.beginPath();g.ellipse(cx,cy+2,15,7,0,0,7);g.fill();g.fillRect(cx-15,cy-4,30,6);
+  g.fillStyle="#a8a193";g.beginPath();g.ellipse(cx,cy-4,15,7,0,0,7);g.fill();
+  g.strokeStyle=c;g.lineWidth=2;g.beginPath();g.ellipse(cx,cy-4,11,4.5,0,0,7);g.stroke();
+}
+function drawGym(g,gym){
+  const x=(gym.tx-3)*TS,y=(gym.ty-5)*TS,w=7*TS,h=5*TS,col=gym.color,fill=(c,a,b,cw,ch)=>{g.fillStyle=c;g.fillRect(a,b,cw,ch)};
+  g.fillStyle="rgba(0,0,0,.22)";g.fillRect(x+8,y+h-4,w,12);
+  fill("#eef0f2",x+6,y+56,w-12,h-56);fill("#d5d9dd",x+6,y+h-10,w-12,10);
+  // roof
+  g.fillStyle=col;g.beginPath();g.moveTo(x-6,y+64);g.lineTo(x+24,y+4);g.lineTo(x+w-24,y+4);g.lineTo(x+w+6,y+64);g.closePath();g.fill();
+  g.fillStyle="rgba(0,0,0,.16)";for(let i=0;i<5;i++)g.fillRect(x+10+i*3,y+20+i*9,w-20-i*6,2);
+  // emblem
+  g.fillStyle="#fff";g.beginPath();g.arc(x+w/2,y+40,19,0,7);g.fill();
+  g.fillStyle=col;g.beginPath();g.arc(x+w/2,y+40,15,0,7);g.fill();
+  g.fillStyle="#fff";g.font="bold 15px Jua, sans-serif";g.textAlign="center";g.textBaseline="middle";g.fillText(TYPES[gym.type].name[0],x+w/2,y+41);
+  // door + windows
+  fill("#3a4450",x+w/2-18,y+h-46,36,46);fill(col,x+w/2-18,y+h-50,36,5);fill("#9fb3c4",x+w/2-14,y+h-42,12,16);fill("#9fb3c4",x+w/2+2,y+h-42,12,16);
+  for(const wx of [x+22,x+w-58]){fill("#5b84a8",wx,y+82,36,26);fill("#9cc4e4",wx+3,y+85,14,9)}
+  // sign
+  g.fillStyle="rgba(10,18,22,.85)";g.beginPath();g.roundRect(x+w/2-62,y+h+14,124,22,6);g.fill();
+  g.fillStyle="#ffd24a";g.font="13px Jua, sans-serif";g.fillText(`Lv${gym.lv} ${gym.name}`,x+w/2,y+h+26);
+}
+function drawStop(g,p){
+  for(const [b,kind] of [[p.heal,"heal"],[p.shop,"shop"]]){
+    const x=b.x*TS,y=b.y*TS,w=5*TS,hh=4*TS,roof=kind==="heal"?"#e8608a":"#3f7fd6",fill=(c,a,bb,cw,ch)=>{g.fillStyle=c;g.fillRect(a,bb,cw,ch)};
+    g.fillStyle="rgba(0,0,0,.2)";g.fillRect(x+6,y+hh-6,w,10);
+    fill("#f4efe6",x+6,y+44,w-12,hh-44);fill("#dcd4c4",x+6,y+hh-8,w-12,8);
+    g.fillStyle=roof;g.beginPath();g.moveTo(x,y+52);g.lineTo(x+16,y+6);g.lineTo(x+w-16,y+6);g.lineTo(x+w,y+52);g.closePath();g.fill();
+    g.fillStyle="rgba(0,0,0,.15)";for(let i=0;i<4;i++)g.fillRect(x+6+i*2,y+18+i*9,w-12-i*4,2);
+    g.fillStyle="#fff";g.beginPath();g.arc(x+w/2,y+30,14,0,7);g.fill();
+    if(kind==="heal"){g.fillStyle="#e8304a";g.fillRect(x+w/2-3,y+21,6,18);g.fillRect(x+w/2-9,y+27,18,6)}
+    else{g.fillStyle="#f0b429";g.beginPath();g.arc(x+w/2,y+30,10,0,7);g.fill();g.strokeStyle="#c98a10";g.lineWidth=2;g.beginPath();g.arc(x+w/2,y+30,7,0,7);g.stroke();
+      g.fillStyle="#8a5a00";g.font="bold 11px Jua, sans-serif";g.textAlign="center";g.textBaseline="middle";g.fillText("G",x+w/2,y+31)}
+    fill("#7a5233",x+w/2-12,y+hh-34,24,34);fill(kind==="heal"?"#ffd0dc":"#cfe3ff",x+w/2-9,y+hh-30,8,12);fill(kind==="heal"?"#ffd0dc":"#cfe3ff",x+w/2+1,y+hh-30,8,12);
+    g.fillStyle="rgba(10,18,22,.85)";g.beginPath();g.roundRect(x+w/2-36,y+hh+8,72,20,6);g.fill();
+    g.fillStyle=kind==="heal"?"#ffb3c6":"#b3d4ff";g.font="13px Jua, sans-serif";g.textAlign="center";g.textBaseline="middle";g.fillText(kind==="heal"?"치유센터":"상점",x+w/2,y+hh+18);
+  }
+}
+
+/* =====================================================================
+   WILD MONSTERS — roam deterministically from (world seed, clock), so
+   every player sees the same monster at the same place. A defeated or
+   tamed monster disappears for everyone and respawns in a later cycle.
+   ===================================================================== */
+const WILD_CYCLE=150;     // seconds a spawn lives before a new one replaces it
+const WILD_STEP=5;        // seconds per wander step
+const wildGone=new Map(); // id -> until (ms)
+function wildPick(pool,r){let tot=0;for(const [,w] of pool)tot+=w;let x=r*tot;for(const [sp,w] of pool){if((x-=w)<0)return sp}return pool[0][0]}
+function wildWalkable(tx,ty){const t=tileAt(tx,ty);return !SOLID.has(t)&&t!==T.PATH&&t!==T.BRIDGE&&t!==T.GYMFLOOR&&!inTown(tx,ty)}
+/* the spawns of one chunk at time `now` (seconds) */
+function chunkWild(cx,cy,now){
+  const out=[];
+  const r0=hash(cx,cy,701);
+  const count=r0<0.35?0:r0<0.8?1:2;
+  for(let s=0;s<count;s++){
+    const phase=hash(cx,cy,710+s)*WILD_CYCLE;
+    const cyc=Math.floor((now+phase)/WILD_CYCLE);
+    const id=`${cx}_${cy}_${s}_${cyc}`;
+    // home tile: a few tries for open ground, preferring tall grass
+    let hx=-1,hy=-1;
+    for(let k=0;k<10;k++){
+      const tx=cx*CH+Math.floor(hash(cyc,s*31+k,cx*7+cy*13+3)*CH),ty=cy*CH+Math.floor(hash(cyc,s*31+k,cx*11+cy*5+9)*CH);
+      if(!wildWalkable(tx,ty))continue;
+      hx=tx;hy=ty;if(tileAt(tx,ty)===T.TALL)break;
+    }
+    if(hx<0)continue;
+    const biome=biomeAt(hx,hy);
+    const zone=gymZone(hx,hy);
+    const sp=wildPick(BIOME_POOLS[biome]||BIOME_POOLS.meadow,hash(cyc,s,cx*3+cy*17+41));
+    let lv=zone?zone.lv-4+Math.floor(hash(cyc,s,cx+cy*29+77)*7):levelAt(hx,hy)-2+Math.floor(hash(cyc,s,cx+cy*29+77)*5);
+    lv=Math.max(2,Math.min(MAX_LV,lv));
+    // wander: move for 2.5s toward the next waypoint, then rest
+    const step=Math.floor((now+phase)/WILD_STEP),f=((now+phase)/WILD_STEP)-step;
+    const wp=(i)=>{const dx=Math.round((hash(i,s,cx*37+cy*91+cyc)-0.5)*6),dy=Math.round((hash(i,s,cx*53+cy*17+cyc+5)-0.5)*6);
+      return wildWalkable(hx+dx,hy+dy)?[hx+dx,hy+dy]:[hx,hy]};
+    const a=wp(step-1),b=wp(step),k=Math.min(1,f*2),e=k*k*(3-2*k);
+    const x=(a[0]+(b[0]-a[0])*e+0.5)*TS,y=(a[1]+(b[1]-a[1])*e+0.6)*TS;
+    const dx=b[0]-a[0],dy=b[1]-a[1];
+    const dir=k<1&&(dx||dy)?(Math.abs(dx)>Math.abs(dy)?(dx<0?1:2):(dy<0?3:0)):0;
+    const rr=seededRnd(id),sp_=rollIVs(rr).special,shiny=rr()<1/256; // same rolls the battle will use
+    out.push({id,sp,lv,x,y,dir,moving:k<1&&(dx||dy)!==0,special:sp_,shiny});
+  }
+  return out;
+}
+/* wild monsters around a world position */
+function wildNear(x,y,radiusChunks=2){
+  const now=Date.now()/1000,ccx=Math.floor(x/TS/CH),ccy=Math.floor(y/TS/CH),list=[];
+  for(let j=-radiusChunks;j<=radiusChunks;j++)for(let i=-radiusChunks;i<=radiusChunks;i++){
+    for(const w of chunkWild(ccx+i,ccy+j,now)){const g=wildGone.get(w.id);if(g&&g>Date.now())continue;list.push(w)}
+  }
+  const boss=currentBoss(now);
+  if(boss&&Math.abs(boss.x-x)<(radiusChunks+1)*CH*TS&&Math.abs(boss.y-y)<(radiusChunks+1)*CH*TS)list.push(boss);
+  return list;
+}
+function markWildGone(id,ms=WILD_CYCLE*1000){wildGone.set(id,Date.now()+ms);if(wildGone.size>500)for(const [k,v] of wildGone)if(v<Date.now())wildGone.delete(k)}
+
+/* ---- boss: every 30 minutes, for 15 minutes, at the same place for everyone ---- */
+const BOSS_PERIOD=1800, BOSS_LIFE=900;
+const bossCache=new Map();
+function bossHome(k){
+  if(bossCache.has(k))return bossCache.get(k);
+  const a=hash(k,1,901)*Math.PI*2,d=70+hash(k,2,902)*330;
+  let hx=Math.round(TOWN.cx+Math.cos(a)*d),hy=Math.round(TOWN.cy+Math.sin(a)*d),found=null;
+  for(let r=0;r<14&&!found;r++)for(let j=-r;j<=r&&!found;j++)for(let i=-r;i<=r;i++){if(Math.max(Math.abs(i),Math.abs(j))!==r)continue;if(wildWalkable(hx+i,hy+j)){found=[hx+i,hy+j];break}}
+  if(!found)found=[hx,hy];
+  const biome=biomeAt(found[0],found[1]);
+  const pool=BIOME_POOLS[biome]||BIOME_POOLS.meadow;
+  const sp=pool[Math.floor(hash(k,4,904)*pool.length)][0];
+  const lv=Math.max(8,Math.min(MAX_LV,levelAt(found[0],found[1])+8));
+  const home={k,tx:found[0],ty:found[1],sp,lv,biome,shiny:hash(k,3,903)<0.35,id:"boss_"+k};
+  bossCache.set(k,home);return home;
+}
+function currentBoss(nowSec=Date.now()/1000){
+  const k=Math.floor(nowSec/BOSS_PERIOD),age=nowSec-k*BOSS_PERIOD;
+  if(age>BOSS_LIFE)return null;
+  const h=bossHome(k);
+  const g=wildGone.get(h.id);if(g&&g>Date.now())return null;
+  const step=Math.floor(nowSec/8),f=nowSec/8-step;
+  const wp=(i)=>{const dx=Math.round((hash(i,k,931)-0.5)*4),dy=Math.round((hash(i,k,937)-0.5)*4);return wildWalkable(h.tx+dx,h.ty+dy)?[h.tx+dx,h.ty+dy]:[h.tx,h.ty]};
+  const a=wp(step-1),b=wp(step),q=Math.min(1,f*1.6),e=q*q*(3-2*q);
+  const dx=b[0]-a[0],dy=b[1]-a[1];
+  return{id:h.id,boss:true,sp:h.sp,lv:h.lv,shiny:h.shiny,special:true,
+    x:(a[0]+dx*e+0.5)*TS,y:(a[1]+dy*e+0.6)*TS,dir:q<1&&(dx||dy)?(Math.abs(dx)>Math.abs(dy)?(dx<0?1:2):(dy<0?3:0)):0,moving:q<1&&(dx||dy)!==0,
+    endsAt:(k*BOSS_PERIOD+BOSS_LIFE)*1000,tx:h.tx,ty:h.ty};
+}
+const nextBossAt=()=>(Math.floor(Date.now()/1000/BOSS_PERIOD)+1)*BOSS_PERIOD*1000;
+const mmss=(ms)=>{const s=Math.max(0,Math.round(ms/1000));return`${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`};
+
+/* =====================================================================
+   SPRITES (vector, drawn in world space)
+   ===================================================================== */
+function ellipse(c,x,y,rx,ry,col){c.fillStyle=col;c.beginPath();c.ellipse(x,y,rx,ry,0,0,7);c.fill()}
+function shadow(c,x,y,r){ellipse(c,x,y,r,r*0.38,"rgba(0,0,0,.22)")}
+function eyes(c,x,y,gap,dir,r=1.7){
+  if(dir===3)return; const ox=dir===1?-1.5:dir===2?1.5:0;
+  ellipse(c,x-gap+ox,y,r,r*1.25,"#1b1b22");ellipse(c,x+gap+ox,y,r,r*1.25,"#1b1b22");
+  ellipse(c,x-gap+ox+0.6,y-0.8,0.6,0.6,"#fff");ellipse(c,x+gap+ox+0.6,y-0.8,0.6,0.6,"#fff");
+}
+/* x,y = feet position. t = time (s) */
+function drawStarter(c,kind,x,y,t,dir=0,moving=false){
+  const hop=moving?Math.abs(Math.sin(t*12))*3:Math.sin(t*3)*0.8;
+  shadow(c,x,y,9); const by=y-9-hop;
+  if(kind==="raki"){
+    // tail fin
+    const sw=Math.sin(t*6)*2;
+    c.fillStyle="#2f86d6";c.beginPath();c.moveTo(x+(dir===1?7:-7),by+2);c.lineTo(x+(dir===1?15:-15),by-4+sw);c.lineTo(x+(dir===1?14:-14),by+6+sw);c.closePath();c.fill();
+    ellipse(c,x,by,10,8.5,"#5bb8f0");ellipse(c,x,by+3,6.5,4.5,"#c6ecff");
+    // droplet crest
+    c.fillStyle="#2f86d6";c.beginPath();c.moveTo(x,by-17);c.quadraticCurveTo(x+6,by-9,x,by-7);c.quadraticCurveTo(x-6,by-9,x,by-17);c.fill();
+    ellipse(c,x-1.5,by-11,1.2,2,"#9fdcff");
+    eyes(c,x,by-2,3.6,dir);
+  } else if(kind==="puhwa"){
+    const f=1+Math.sin(t*10)*0.15, tx=dir===1?x+9:x-9;
+    // flame tail
+    ellipse(c,tx,by-4,4.5*f,7*f,"#ff4d2e");ellipse(c,tx,by-3,3*f,4.5*f,"#ffd24a");
+    ellipse(c,x,by,9.5,8.5,"#f07a3a");ellipse(c,x,by+3.5,5.5,4,"#ffd9b0");
+    // ears
+    c.fillStyle="#d85a22";for(const s of [-1,1]){c.beginPath();c.moveTo(x+s*3,by-6);c.lineTo(x+s*9,by-15);c.lineTo(x+s*9,by-4);c.closePath();c.fill()}
+    c.fillStyle="#ffd24a";for(const s of [-1,1]){c.beginPath();c.moveTo(x+s*6,by-7);c.lineTo(x+s*8.5,by-12);c.lineTo(x+s*8.5,by-6);c.closePath();c.fill()}
+    eyes(c,x,by-1.5,3.4,dir);
+    if(dir!==3)ellipse(c,x+(dir===1?-1.5:dir===2?1.5:0),by+1.8,1.2,0.8,"#7a2c12");
+  } else {
+    ellipse(c,x-4,y-2-hop*0.3,3,2,"#3f8f3d");ellipse(c,x+4,y-2-hop*0.3,3,2,"#3f8f3d");
+    ellipse(c,x,by,10,9,"#6cc36a");ellipse(c,x,by+3,6,4,"#b9eab0");
+    // sprout
+    const sway=Math.sin(t*2.5)*0.25;
+    c.save();c.translate(x,by-8);c.rotate(sway);
+    c.fillStyle="#3f8f3d";c.fillRect(-0.8,-6,1.6,6);
+    c.fillStyle="#8fdc5a";c.beginPath();c.ellipse(-4,-7,5,2.4,-0.5,0,7);c.fill();c.beginPath();c.ellipse(4,-8,5,2.4,0.5,0,7);c.fill();
+    c.restore();
+    eyes(c,x,by-1,3.6,dir);
+    if(dir===0){ellipse(c,x-6.5,by+1.5,1.8,1.1,"#ff9fb0");ellipse(c,x+6.5,by+1.5,1.8,1.1,"#ff9fb0")}
+  }
+}
+function drawPerson(c,x,y,t,dir,moving,shirt,hair="#2b2622",coat=false){
+  const step=moving?Math.sin(t*14):0, bob=moving?Math.abs(step)*1.2:0;
+  shadow(c,x,y,8);
+  // legs
+  c.fillStyle="#3a3f55";c.fillRect(x-4,y-8+(step>0?-1:0),3,7);c.fillRect(x+1,y-8+(step<0?-1:0),3,7);
+  // body
+  const by=y-8-bob;
+  c.fillStyle=coat?"#f2f2ee":shirt;c.beginPath();c.roundRect(x-6,by-11,12,12,3);c.fill();
+  if(coat){c.fillStyle=shirt;c.fillRect(x-1,by-11,2,10)}
+  // arms
+  c.fillStyle=coat?"#e2e2dc":shirt;const sw=moving?step*2:0;
+  if(dir!==2)c.fillRect(x-8,by-9+sw,3,8); if(dir!==1)c.fillRect(x+5,by-9-sw,3,8);
+  // head
+  const hy=by-17;
+  ellipse(c,x,hy,7,7,"#f3c9a0");
+  c.fillStyle=hair;c.beginPath();
+  if(dir===3){c.arc(x,hy,7.3,0,7)}else{c.arc(x,hy-1.5,7.3,Math.PI*1.02,Math.PI*1.98);c.rect(x-7.3,hy-2.5,14.6,2.5)}
+  c.fill();
+  if(dir===1){c.fillRect(x+2,hy-3,5,6)} if(dir===2){c.fillRect(x-7,hy-3,5,6)}
+  eyes(c,x,hy+1,2.6,dir,1.3);
+}
+
+
+/* ---- all species: starters keep their hand-drawn art, others below ---- */
+const CANVAS_FILTER=(()=>{try{const c=document.createElement("canvas").getContext("2d");c.filter="hue-rotate(10deg)";return c.filter==="hue-rotate(10deg)"}catch(e){return false}})();
+function drawMon(c,kind,x,y,t,dir=0,moving=false,scale=1,shiny=false){
+  if(scale!==1){c.save();c.translate(x,y);c.scale(scale,scale);c.translate(-x,-y)}
+  if(shiny&&CANVAS_FILTER){c.save();c.filter="hue-rotate(150deg) saturate(1.35) brightness(1.05)"}
+  if(kind==="raki"||kind==="puhwa"||kind==="poi")drawStarter(c,kind,x,y,t,dir,moving);
+  else drawWild(c,kind,x,y,t,dir,moving);
+  if(shiny&&CANVAS_FILTER)c.restore();
+  if(shiny){ // 이로치 sparkle
+    for(let i=0;i<3;i++){const a=t*2+i*2.1,r=9+Math.sin(t*3+i)*3,sx=x+Math.cos(a)*r,sy=y-12+Math.sin(a)*r*0.8,k=1.6+Math.sin(t*6+i)*0.8;
+      c.fillStyle="rgba(255,240,150,.95)";c.beginPath();c.moveTo(sx,sy-k*1.6);c.lineTo(sx+k*0.4,sy-k*0.4);c.lineTo(sx+k*1.6,sy);c.lineTo(sx+k*0.4,sy+k*0.4);c.lineTo(sx,sy+k*1.6);c.lineTo(sx-k*0.4,sy+k*0.4);c.lineTo(sx-k*1.6,sy);c.lineTo(sx-k*0.4,sy-k*0.4);c.closePath();c.fill()}
+  }
+  if(scale!==1)c.restore();
+}
+function drawWild(c,kind,x,y,t,dir,moving){
+  const hop=moving?Math.abs(Math.sin(t*12))*3:Math.sin(t*3)*0.8, side=dir===1?-1:dir===2?1:0;
+  const tri=(col,pts)=>{c.fillStyle=col;c.beginPath();c.moveTo(pts[0],pts[1]);for(let i=2;i<pts.length;i+=2)c.lineTo(pts[i],pts[i+1]);c.closePath();c.fill()};
+  switch(kind){
+    case"toto":{shadow(c,x,y,9);const by=y-9-hop;
+      for(const s of [-1,1]){c.save();c.translate(x+s*4,by-6);c.rotate(s*0.18+Math.sin(t*4+s)*0.05);ellipse(c,0,-8,2.8,8,"#e8d3a8");ellipse(c,0,-8,1.4,6,"#f4a9b3");c.restore()}
+      ellipse(c,x,by,9.5,8.5,"#e8d3a8");ellipse(c,x,by+3,5.5,4,"#fbf1dc");ellipse(c,x-side*9,by+3,2.6,2.6,"#fff");
+      eyes(c,x,by-1.5,3.4,dir);if(dir!==3)ellipse(c,x+side*1.5,by+1.6,1,0.7,"#c46a78");break}
+    case"lifto":{shadow(c,x,y,9);const by=y-9-hop;
+      tri("#3f9a3c",[x-side*7,by+1,x-side*16,by-6+Math.sin(t*6)*2,x-side*14,by+5]);
+      for(const s of [-1,1]){c.save();c.translate(x+s*5,by-6);c.rotate(s*0.5);ellipse(c,0,-5,3,7,"#5cc65a");c.fillStyle="#3f9a3c";c.fillRect(-0.4,-11,0.8,10);c.restore()}
+      ellipse(c,x,by,9,8,"#7fcf5f");ellipse(c,x,by+3,5,3.8,"#d6f2c4");eyes(c,x,by-1.5,3.3,dir);break}
+    case"mudi":{shadow(c,x,y,10);const by=y-8-hop*0.5;
+      c.fillStyle="#222";for(const s of [-1,1])for(let i=0;i<3;i++)c.fillRect(x+s*8-(s<0?2:0),by+i*3-1,3,1.4);
+      ellipse(c,x,by,10.5,8.5,"#8a3a2a");ellipse(c,x-3,by-3,4,2.4,"#b8604a");c.fillStyle="#5e2418";c.fillRect(x-0.5,by-7,1,14);
+      ellipse(c,x,by-8,5.5,4,"#3a2018");tri("#3a2018",[x-1.5,by-10,x,by-19,x+1.5,by-10]);tri("#3a2018",[x,by-15,x+4,by-17,x+1,by-13]);
+      eyes(c,x,by-8,2.2,dir,1.2);break}
+    case"nabi":{const fl=Math.sin(t*14)*0.5+0.5,by=y-14-Math.sin(t*3)*2;shadow(c,x,y,7);
+      for(const s of [-1,1]){c.save();c.translate(x,by);c.scale(s*(0.5+fl*0.5),1);
+        ellipse(c,8,-4,8,6.5,"#f5b8d8");ellipse(c,7,4,5.5,4.5,"#a9d6f5");ellipse(c,9,-5,3,2.4,"#fff");c.restore()}
+      ellipse(c,x,by,4,7,"#c9a6f0");c.strokeStyle="#5a4080";c.lineWidth=0.8;c.beginPath();c.moveTo(x-1,by-6);c.lineTo(x-4,by-12);c.moveTo(x+1,by-6);c.lineTo(x+4,by-12);c.stroke();
+      ellipse(c,x-4,by-12,1,1,"#5a4080");ellipse(c,x+4,by-12,1,1,"#5a4080");eyes(c,x,by-3,1.8,dir,1.1);break}
+    case"bulssi":{shadow(c,x,y,9);const by=y-9-hop,f=1+Math.sin(t*10)*0.15,tx=x-side*9-(side?0:8);
+      ellipse(c,tx,by-3,3.2*f,5*f,"#ff4d2e");ellipse(c,tx,by-2,2*f,3*f,"#ffd24a");
+      ellipse(c,x,by,9.5,8,"#e8553a");ellipse(c,x,by+3,5.2,3.6,"#ffd9b0");
+      for(const s of [-1,1]){c.save();c.translate(x+s*7,by-4);c.rotate(s*0.5);ellipse(c,0,3,2.6,5,"#a8321e");c.restore()}
+      eyes(c,x,by-1.5,3.2,dir);if(dir!==3)ellipse(c,x+side*1.5,by+1.8,1.3,0.9,"#3a1a10");break}
+    case"hwaro":{shadow(c,x,y,12);const by=y-8-hop*0.6,tx=x-(side||1)*13;
+      ellipse(c,tx,by+1,6,3,"#b0302a");ellipse(c,tx-(side||1)*5,by-3,2.6*(1+Math.sin(t*10)*0.2),4,"#ffb13a");
+      ellipse(c,x,by,12,7.5,"#b0302a");ellipse(c,x,by+3,8,3.5,"#e8a070");
+      for(let i=-2;i<=2;i++)tri("#ffcf3a",[x+i*4-2,by-6,x+i*4,by-11,x+i*4+2,by-6]);
+      ellipse(c,x+(side||0)*9,by-3,6,5,"#c03a30");eyes(c,x+(side||0)*9,by-4,2.4,dir,1.3);break}
+    case"bogeul":{shadow(c,x,y,9);const sq=Math.sin(t*4)*0.6,by=y-8-hop*0.5;
+      ellipse(c,x,by,10+sq,8.5-sq,"#7ec8f2");ellipse(c,x-3,by-3,3,2,"#c8ecff");
+      for(let i=0;i<3;i++){const a=(t*0.6+i/3)%1;c.strokeStyle=`rgba(200,236,255,${1-a})`;c.lineWidth=0.8;c.beginPath();c.arc(x-6+i*6,by-10-a*14,1.5+i*0.4,0,7);c.stroke()}
+      eyes(c,x,by-1,3.4,dir);if(dir!==3){c.strokeStyle="#2a5a80";c.lineWidth=0.8;c.beginPath();c.arc(x+side*1.5,by+2,1.6,0.2,Math.PI-0.2);c.stroke()}break}
+    case"draco":case"yongrin":{const big=kind==="yongrin",body=big?"#2fa89a":"#8a6be0",belly=big?"#bdf0e6":"#e3d8ff",wingc=big?"#1f7a70":"#6a4cc0",horn=big?"#ffd24a":"#f1e7c8";
+      const by=y-10-hop-(big?Math.sin(t*2)*2:0);shadow(c,x,y,big?11:9);const fl=Math.sin(t*(big?5:9));
+      for(const s of [-1,1])tri(wingc,[x+s*5,by-3,x+s*(17+fl*2),by-12-fl*3,x+s*14,by+2]);
+      ellipse(c,x-(side||1)*9,by+4,5,2.5,body);tri(body,[x-(side||1)*13,by+3,x-(side||1)*18,by,x-(side||1)*14,by+6]);
+      ellipse(c,x,by,10,9,body);ellipse(c,x,by+3,6,4.5,belly);
+      for(const s of [-1,1])tri(horn,[x+s*3,by-7,x+s*6,by-15,x+s*6,by-6]);
+      eyes(c,x,by-1.5,3.4,dir);break}
+    case"jumeok":{shadow(c,x,y,10);const by=y-9-hop,pu=Math.max(0,Math.sin(t*6))*3;
+      ellipse(c,x,by,9.5,8.5,"#f0a040");ellipse(c,x,by+3,5.5,4,"#ffe0b0");
+      ellipse(c,x-11-(side<0?pu:0),by+2,5,4.6,"#d83030");ellipse(c,x+11+(side>0?pu:0),by+2,5,4.6,"#d83030");
+      ellipse(c,x-12,by+1,2,1.5,"#ff7070");ellipse(c,x+10,by+1,2,1.5,"#ff7070");
+      eyes(c,x,by-2,3.2,dir);c.fillStyle="#7a3a10";if(dir!==3){c.fillRect(x-5,by-6,3,1);c.fillRect(x+2,by-6,3,1)}break}
+    case"taekwon":{shadow(c,x,y,10);const by=y-10-hop,kick=Math.max(0,Math.sin(t*3))*0.6;
+      c.save();c.translate(x+4,by+6);c.rotate(-kick*(side||1));ellipse(c,(side||1)*6,0,6,2.6,"#f2efe6");c.restore();
+      ellipse(c,x,by,9,9,"#f2efe6");c.fillStyle="#222";c.fillRect(x-9,by+2,18,2.4);
+      c.fillStyle="#d83030";c.fillRect(x-8,by-7,16,2.4);c.beginPath();c.moveTo(x-(side||1)*8,by-6);c.lineTo(x-(side||1)*15,by-3+Math.sin(t*8)*2);c.lineTo(x-(side||1)*14,by-7);c.fill();
+      eyes(c,x,by-2,3.2,dir);break}
+    default:shadow(c,x,y,9);ellipse(c,x,y-9-hop,9,8,"#bbb");eyes(c,x,y-10-hop,3,dir);
+  }
+}
+
+/* =====================================================================
+   STATE
+   ===================================================================== */
+const S={
+  phase:"auth", uid:null, db:null, room:null, ref:null, local:false,
+  profile:null, // {nickname,color,starter,party:[mon],active,box:[mon],badges:[gymId],x,y,createdAt}
+  me:{x:SPAWN.x,y:SPAWN.y,dir:3,moving:false},
+  comp:{x:SPAWN.x,y:SPAWN.y+20,dir:3,moving:false},
+  others:new Map(), talked:false,
+  dialog:null, modalOpen:false, menuOpen:false, t:0, lastSave:0, movedSinceSave:false,
+  keys:new Set(), joy:{x:0,y:0,active:false,id:null,ox:0,oy:0},
+  online:false, battle:null, learn:null, mapOpen:false, encounterCool:0
+};
+const $=(id)=>document.getElementById(id);
+
+/* ---------- auth screen art ---------- */
+function drawPortrait(cv,kind,bg){
+  const c=cv.getContext("2d");c.setTransform(1,0,0,1,0,0);c.clearRect(0,0,cv.width,cv.height);
+  if(bg){c.fillStyle=bg;c.fillRect(0,0,cv.width,cv.height)}
+  const s=cv.width/36;c.setTransform(s,0,0,s,0,0);drawMon(c,kind,18,29,S.t,0,false,1,cv.id==="mon-art"&&artShiny);
+}
+document.querySelectorAll(".trio canvas").forEach(cv=>drawPortrait(cv,cv.dataset.mon));
+
+/* =====================================================================
+   PERSISTENCE (claude.ai account via db, or this-device fallback)
+   ===================================================================== */
+const LS_KEY="tame-world-profile";
+let saveChain=Promise.resolve();
+function save(patch){
+  S.profile={...S.profile,...patch};
+  const body={...S.profile};
+  saveChain=saveChain.then(async()=>{
+    try{
+      if(S.ref)await S.ref.set(body);
+      else{try{localStorage.setItem(LS_KEY,JSON.stringify(body))}catch(e){}}
+    }catch(e){toast("저장하지 못했어요. 연결을 확인한 뒤 다시 시도해 주세요.")}
+  });
+  return saveChain;
+}
+async function boot(){
+  let prof=null;
+  S.local=true;try{prof=JSON.parse(localStorage.getItem(LS_KEY)||"null")}catch(e){}
+  let canStore=false;try{localStorage.setItem("tmw-probe","1");localStorage.removeItem("tmw-probe");canStore=true}catch(e){}
+  $("acct-note").textContent=canStore
+    ?"계정은 이 기기(브라우저)에 저장돼요. 게임 중 ESC → 서버 연결을 누르면 전 세계 트레이너들과 같은 월드에서 만나요."
+    :"지금 화면에서는 저장이 막혀 있어서, 창을 닫으면 계정이 사라져요. 파일을 다운로드해서 크롬으로 열면 저장돼요.";
+  $("auth-loading").hidden=true;
+  const today=new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,10);
+  for(const id of ["birth","reset-birth"])$(id).max=today;
+  let resume=null;
+  try{resume=JSON.parse(sessionStorage.getItem("mtw-resume")||"null");sessionStorage.removeItem("mtw-resume")}catch(e){}
+  if(prof)ensureParty(prof);
+  if(resume&&Date.now()-resume.at<120000&&resume.phase==="game"&&prof&&prof.nickname&&prof.pwHash){
+    S.profile={...prof};S.resume=resume;enterWorld(false);return; // came back from a live update: skip login
+  }
+  if(prof&&prof.nickname){
+    S.profile={...prof};
+    if(prof.pwHash)showLogin();
+    else showReset("setup"); // 비밀번호 도입 전에 만든 계정
+  } else {
+    showForm("signup");buildSwatches();$("nick").focus();
+  }
+}
+function showForm(id){for(const f of ["signup","login","reset"])$(f).hidden=f!==id}
+function showLogin(){
+  const p=S.profile;
+  $("login-nick").textContent=p.nickname;
+  const lead=p.party&&p.party[0];
+  $("login-partner").textContent=lead?`${SPECIES[lead.sp].name}(Lv${lead.lv}) 외 ${p.party.length-1}마리가 기다리고 있어요.`.replace(" 외 0마리",""):"아직 첫 파트너를 고르지 않았어요.";
+  $("login-pw").value="";$("login-err").textContent="";
+  showForm("login");$("login-pw").focus();
+}
+let resetMode="forgot";
+function showReset(mode){
+  resetMode=mode;
+  $("reset-intro").textContent=mode==="setup"
+    ?`${S.profile.nickname} 트레이너님, 계정 보호를 위해 비밀번호와 생년월일을 설정해 주세요.`
+    :"가입할 때 입력한 생년월일을 확인한 뒤 새 비밀번호를 정할 수 있어요.";
+  $("reset-birth-wrap").firstChild.textContent=mode==="setup"?"생년월일":"가입할 때 입력한 생년월일";
+  $("reset-cancel").hidden=mode==="setup";
+  for(const id of ["reset-birth","reset-pw","reset-pw2"])$(id).value="";
+  $("reset-err").textContent="";
+  showForm("reset");$("reset-birth").focus();
+}
+
+/* ---------- password & birth date ---------- */
+/* PBKDF2-HMAC-SHA256 in plain JS — used only where the browser's crypto.subtle is unavailable
+   (e.g. previews opened over plain http). Produces the same result as crypto.subtle. */
+const SHA_K=new Int32Array([0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2]);
+const SHA_IV=[0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];
+const shaW=new Int32Array(64);
+function shaCompress(H,W){ // H: 8 words (in), W: first 16 words filled; returns new 8-word array
+  for(let t=16;t<64;t++){const a=W[t-15],b=W[t-2];
+    W[t]=(((a>>>7)|(a<<25))^((a>>>18)|(a<<14))^(a>>>3))+W[t-7]+(((b>>>17)|(b<<15))^((b>>>19)|(b<<13))^(b>>>10))+W[t-16]|0}
+  let a=H[0],b=H[1],c=H[2],d=H[3],e=H[4],f=H[5],g=H[6],h=H[7];
+  for(let t=0;t<64;t++){
+    const t1=h+(((e>>>6)|(e<<26))^((e>>>11)|(e<<21))^((e>>>25)|(e<<7)))+((e&f)^(~e&g))+SHA_K[t]+W[t]|0;
+    const t2=(((a>>>2)|(a<<30))^((a>>>13)|(a<<19))^((a>>>22)|(a<<10)))+((a&b)^(a&c)^(b&c))|0;
+    h=g;g=f;f=e;e=d+t1|0;d=c;c=b;b=a;a=t1+t2|0}
+  return[H[0]+a|0,H[1]+b|0,H[2]+c|0,H[3]+d|0,H[4]+e|0,H[5]+f|0,H[6]+g|0,H[7]+h|0];
+}
+function sha256Bytes(bytes){ // full SHA-256 of a byte array -> 8 words
+  const n=bytes.length,total=((n+9+63)>>6)<<6,buf=new Uint8Array(total);buf.set(bytes);buf[n]=0x80;
+  const bits=n*8;buf[total-4]=bits>>>24;buf[total-3]=bits>>>16;buf[total-2]=bits>>>8;buf[total-1]=bits;
+  let H=SHA_IV.slice();
+  for(let o=0;o<total;o+=64){for(let i=0;i<16;i++)shaW[i]=(buf[o+i*4]<<24)|(buf[o+i*4+1]<<16)|(buf[o+i*4+2]<<8)|buf[o+i*4+3];H=shaCompress(H,shaW)}
+  return H;
+}
+function pbkdf2Js(pwBytes,salt,iterations){
+  let key=pwBytes;
+  if(key.length>64){const h=sha256Bytes(key);key=new Uint8Array(32);for(let i=0;i<8;i++){key[i*4]=h[i]>>>24;key[i*4+1]=h[i]>>>16;key[i*4+2]=h[i]>>>8;key[i*4+3]=h[i]}}
+  const pad=(x)=>{for(let i=0;i<16;i++){let w=0;for(let j=0;j<4;j++)w=(w<<8)|((key[i*4+j]||0)^x);shaW[i]=w}};
+  pad(0x36);const inner=shaCompress(SHA_IV,shaW);
+  pad(0x5c);const outer=shaCompress(SHA_IV,shaW);
+  const hmac32=(u)=>{ // HMAC of a 32-byte message given as 8 words
+    for(let i=0;i<8;i++)shaW[i]=u[i];shaW[8]=0x80000000;for(let i=9;i<15;i++)shaW[i]=0;shaW[15]=(64+32)*8;
+    const ih=shaCompress(inner,shaW);
+    for(let i=0;i<8;i++)shaW[i]=ih[i];shaW[8]=0x80000000;for(let i=9;i<15;i++)shaW[i]=0;shaW[15]=(64+32)*8;
+    return shaCompress(outer,shaW);
+  };
+  // U1 = HMAC(salt || INT(1)), salt is 16 bytes
+  for(let i=0;i<4;i++)shaW[i]=(salt[i*4]<<24)|(salt[i*4+1]<<16)|(salt[i*4+2]<<8)|salt[i*4+3];
+  shaW[4]=1;shaW[5]=0x80000000;for(let i=6;i<15;i++)shaW[i]=0;shaW[15]=(64+20)*8;
+  const ih=shaCompress(inner,shaW);
+  for(let i=0;i<8;i++)shaW[i]=ih[i];shaW[8]=0x80000000;for(let i=9;i<15;i++)shaW[i]=0;shaW[15]=(64+32)*8;
+  let u=shaCompress(outer,shaW);const t=u.slice();
+  for(let k=1;k<iterations;k++){u=hmac32(u);for(let i=0;i<8;i++)t[i]^=u[i]}
+  return t.map(w=>(w>>>0).toString(16).padStart(8,"0")).join("");
+}
+const enc=new TextEncoder();
+const toHex=(buf)=>[...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,"0")).join("");
+async function hashPw(pw,saltHex){
+  const salt=new Uint8Array(saltHex.match(/../g).map(h=>parseInt(h,16)));
+  if(!(window.crypto&&crypto.subtle)){await new Promise(r=>setTimeout(r,20));return pbkdf2Js(enc.encode(pw),salt,120000)}
+  const key=await crypto.subtle.importKey("raw",enc.encode(pw),"PBKDF2",false,["deriveBits"]);
+  return toHex(await crypto.subtle.deriveBits({name:"PBKDF2",hash:"SHA-256",salt,iterations:120000},key,256));
+}
+function randomBytes(n){const a=new Uint8Array(n);try{crypto.getRandomValues(a)}catch(e){for(let i=0;i<n;i++)a[i]=Math.random()*256|0}return a}
+async function makePw(pw){const salt=toHex(randomBytes(16));return{pwSalt:salt,pwHash:await hashPw(pw,salt)}}
+function checkPw(pw,pw2){
+  if(pw.length<8||pw.length>20)return"비밀번호는 8~20자로 정해 주세요.";
+  if(!/[A-Za-z]/.test(pw)||!/[0-9]/.test(pw))return"비밀번호에 영문과 숫자를 모두 넣어 주세요.";
+  if(/\s/.test(pw))return"비밀번호에 띄어쓰기는 쓸 수 없어요.";
+  if(pw!==pw2)return"비밀번호 확인이 일치하지 않아요.";
+  return"";
+}
+function checkBirth(v){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(v))return"생년월일을 입력해 주세요.";
+  const d=new Date(v+"T00:00:00");
+  if(isNaN(d)||d.getFullYear()<1900)return"생년월일을 다시 확인해 주세요.";
+  if(d>new Date())return"생년월일이 오늘보다 늦을 수 없어요.";
+  return"";
+}
+async function writeProfile(){
+  if(S.ref){
+    try{await S.ref.set({...S.profile})}
+    catch(err){ // e.g. view-only access: keep playing, saved on this device instead
+      S.ref=null;S.local=true;toast("계정에 저장할 권한이 없어 이 기기에만 저장돼요.");
+    }
+  }
+  if(!S.ref){try{localStorage.setItem(LS_KEY,JSON.stringify(S.profile))}catch(e){}}
+}
+function wireForm(id,fn){
+  const run=(e)=>{if(e)e.preventDefault();const b=$(id+"-btn");if(b.disabled)return;fn({preventDefault(){}}).catch?.(err=>{$(id+"-err").textContent="문제가 생겼어요: "+(err&&err.message||err)})};
+  $(id+"-btn").addEventListener("click",run);
+  $(id).addEventListener("submit",run);
+  $(id).addEventListener("keydown",(e)=>{if(e.key==="Enter"&&e.target.tagName==="INPUT"&&!e.isComposing){run(e)}});
+}
+let pickedColor=COLORS[0];
+function buildSwatches(){
+  const box=$("swatches");box.textContent="";
+  COLORS.forEach((c,i)=>{const b=document.createElement("button");b.type="button";b.style.background=c;b.setAttribute("aria-label",`색 ${i+1}`);b.setAttribute("aria-pressed",c===pickedColor);
+    b.onclick=()=>{pickedColor=c;[...box.children].forEach(x=>x.setAttribute("aria-pressed",x===b))};box.appendChild(b)});
+}
+const on_signup=async(e)=>{
+  e.preventDefault();
+  const nick=$("nick").value.trim();
+  const err=(m)=>{$("signup-err").textContent=m};
+  if(!/^[가-힣A-Za-z0-9]{2,10}$/.test(nick))return err("이름은 2~10자의 한글, 영문, 숫자만 쓸 수 있어요.");
+  const pwMsg=checkPw($("pw").value,$("pw2").value);if(pwMsg)return err(pwMsg);
+  const bMsg=checkBirth($("birth").value);if(bMsg)return err(bMsg);
+  $("signup-btn").disabled=true;err("");
+  let pw;try{pw=await makePw($("pw").value)}catch(e){$("signup-btn").disabled=false;return err("이 브라우저에서는 비밀번호를 암호화할 수 없어요. 다른 브라우저로 열어 주세요.")}
+  S.profile={nickname:nick,color:pickedColor,birth:$("birth").value,...pw,starter:null,party:[],active:0,box:[],badges:[],gold:START_GOLD,bag:{...START_BAG},pid:randomId(),friends:[],freqIn:[],freqOut:[],guild:null,ginv:[],x:SPAWN.x,y:SPAWN.y,createdAt:Date.now()};
+  $("pw").value=$("pw2").value="";
+  await writeProfile();
+  enterWorld(true);
+};
+wireForm("signup",on_signup);
+
+/* ---------- login ---------- */
+let fails=0,lockUntil=0;
+const on_login=async(e)=>{
+  e.preventDefault();
+  const err=(m)=>{$("login-err").textContent=m};
+  const now=Date.now();
+  if(now<lockUntil)return err(`비밀번호를 여러 번 틀렸어요. ${Math.ceil((lockUntil-now)/1000)}초 뒤에 다시 시도해 주세요.`);
+  const pw=$("login-pw").value;if(!pw)return err("비밀번호를 입력해 주세요.");
+  $("login-btn").disabled=true;
+  let ok=false;try{ok=(await hashPw(pw,S.profile.pwSalt))===S.profile.pwHash}catch(e){}
+  $("login-btn").disabled=false;
+  if(!ok){
+    fails++;$("login-pw").value="";$("login-pw").focus();
+    if(fails>=5){fails=0;lockUntil=Date.now()+30000;return err("비밀번호를 5번 틀려서 30초 동안 로그인할 수 없어요.")}
+    return err(`비밀번호가 맞지 않아요. (${fails}/5)`);
+  }
+  fails=0;$("login-pw").value="";enterWorld(false);
+};
+wireForm("login",on_login);
+$("forgot-btn").onclick=()=>showReset("forgot");
+$("reset-cancel").onclick=()=>showLogin();
+
+/* ---------- reset / first-time setup ---------- */
+let resetFails=0;
+const on_reset=async(e)=>{
+  e.preventDefault();
+  const err=(m)=>{$("reset-err").textContent=m};
+  const b=$("reset-birth").value;
+  const bMsg=checkBirth(b);if(bMsg)return err(bMsg);
+  if(resetMode==="forgot"){
+    if(resetFails>=5)return err("생년월일을 여러 번 틀렸어요. 페이지를 새로 고친 뒤 다시 시도해 주세요.");
+    if(b!==S.profile.birth){resetFails++;return err("가입할 때 입력한 생년월일과 달라요.")}
+  }
+  const pwMsg=checkPw($("reset-pw").value,$("reset-pw2").value);if(pwMsg)return err(pwMsg);
+  $("reset-btn").disabled=true;
+  let pw;try{pw=await makePw($("reset-pw").value)}catch(e2){$("reset-btn").disabled=false;return err("이 브라우저에서는 비밀번호를 암호화할 수 없어요. 다른 브라우저로 열어 주세요.")}
+  S.profile={...S.profile,...pw,birth:b};
+  $("reset-pw").value=$("reset-pw2").value="";
+  await writeProfile();
+  $("reset-btn").disabled=false;
+  toast(resetMode==="setup"?"비밀번호를 설정했어요.":"새 비밀번호로 바꿨어요.");
+  enterWorld(false);
+};
+wireForm("reset",on_reset);
+
+/* =====================================================================
+   ENTER WORLD
+   ===================================================================== */
+function enterWorld(fresh){
+  const p=S.profile;
+  $("auth").hidden=true;S.phase="game";
+  if(fresh||!p.starter){S.me.x=SPAWN.x;S.me.y=SPAWN.y}else{S.me.x=p.x||SPAWN.x;S.me.y=p.y||SPAWN.y}
+  if(blocked(S.me.x,S.me.y)){S.me.x=SPAWN.x;S.me.y=SPAWN.y}
+  S.comp.x=S.me.x;S.comp.y=S.me.y+18;
+  for(const id of ["party","quest","online","minimap","keys"])$(id).hidden=false;
+  if(isTouch){$("touch").hidden=false;$("act").hidden=false;$("keys").hidden=true}
+  const r=S.resume;
+  if(r){
+    if(Number.isFinite(r.x)&&Number.isFinite(r.y)&&!blocked(r.x,r.y)){S.me.x=r.x;S.me.y=r.y}
+    S.me.dir=[0,1,2,3].includes(r.dir)?r.dir:S.me.dir;S.talked=!!r.talked;
+    if(Number.isFinite(r.cx)&&Number.isFinite(r.cy)){S.comp.x=r.cx;S.comp.y=r.cy}else{S.comp.x=S.me.x;S.comp.y=S.me.y+18}
+  }
+  refreshHud();renderOnline();renderSocial();
+  if(r){
+    if(r.net){if(typeof r.myId==="string"&&/^[a-z0-9]{6,16}$/.test(r.myId))NET.myId=r.myId;netConnect()}
+    toast("게임이 새 버전으로 업데이트됐어요!");
+    setTimeout(()=>{S.resume=null},8000);
+    return;
+  }
+  if(!p.starter){
+    setTimeout(()=>openDialog(PROF_NAME,[`${p.nickname}! 여기야, 광장 위쪽! 이리 와 보렴.`]),500);
+  } else toast(`${p.nickname} 트레이너, 다시 오신 걸 환영해요!`);
+}
+function refreshHud(){
+  renderParty();
+  const p=S.profile;
+  $("quest-title").textContent=p.starter?"다음 목표":"튜토리얼";
+  $("quest-text").textContent=p.starter?nextGoalText()
+    :S.talked?"받침대 앞에서 E를 눌러 세 몬스터를 살펴보고 한 마리를 고르세요."
+    :"광장 위쪽의 한결 박사에게 가서 E로 말을 거세요.";
+}
+
+/* =====================================================================
+   MULTIPLAYER — one shared map through a free public relay (MQTT over
+   secure WebSocket). No host, no direct peer connection: everyone who
+   presses "서버 연결" is in the same world and sees each other.
+   ===================================================================== */
+const RELAYS=["wss://broker.emqx.io:8084/mqtt","wss://broker.hivemq.com:8884/mqtt","wss://test.mosquitto.org:8081/mqtt"];
+const TOPIC="mtw-7c1f2/world1/";               // this game's channel on the relay
+const MAX_OTHERS=60;
+const NET={mode:"off",status:"",wanted:false,client:null,relay:0,myId:null,joinedAt:0,timer:null,lastBeat:0};
+
+/* ---------- tiny MQTT 3.1.1 client (QoS 0) ---------- */
+const te=new TextEncoder(),td=new TextDecoder();
+function mqStr(s){const b=te.encode(s);return[b.length>>8,b.length&255,...b]}
+function mqLen(n){const o=[];do{let d=n%128;n=Math.floor(n/128);if(n>0)d|=128;o.push(d)}while(n>0);return o}
+function mqPacket(head,body){return new Uint8Array([head,...mqLen(body.length),...body])}
+class MiniMqtt{
+  constructor(url,clientId,will,on){this.url=url;this.id=clientId;this.will=will;this.on=on;this.buf=new Uint8Array(0);this.ready=false;this.pid=1}
+  open(){
+    let ws;try{ws=new WebSocket(this.url,["mqtt"])}catch(e){setTimeout(()=>this.on.close("open"),0);return}
+    this.ws=ws;ws.binaryType="arraybuffer";
+    ws.onopen=()=>{
+      const flags=0x02|(this.will?0x04:0);
+      const vh=[...mqStr("MQTT"),4,flags,0,30];
+      const pl=[...mqStr(this.id)];
+      if(this.will){pl.push(...mqStr(this.will.topic));const w=te.encode(this.will.msg);pl.push(w.length>>8,w.length&255,...w)}
+      ws.send(mqPacket(0x10,[...vh,...pl]));
+    };
+    ws.onmessage=(e)=>{const d=new Uint8Array(e.data),b=new Uint8Array(this.buf.length+d.length);b.set(this.buf);b.set(d,this.buf.length);this.buf=b;this.parse()};
+    ws.onclose=()=>{const was=this.ready;this.ready=false;clearInterval(this.ping);this.on.close(was?"lost":"open")};
+    ws.onerror=()=>{};
+  }
+  parse(){
+    for(;;){
+      const b=this.buf;if(b.length<2)return;
+      let len=0,mul=1,i=1,byte;
+      do{if(i>=b.length)return;byte=b[i++];len+=(byte&127)*mul;mul*=128}while(byte&128);
+      if(b.length<i+len)return;
+      const type=b[0]>>4,body=b.subarray(i,i+len);this.buf=b.slice(i+len);
+      if(type===2){ // CONNACK
+        if(body[1]!==0){this.ws.close();continue}
+        this.ready=true;this.ping=setInterval(()=>this.raw(new Uint8Array([0xC0,0])),20000);this.on.ready();
+      } else if(type===3){ // PUBLISH
+        const qos=(b[0]>>1)&3,tl=(body[0]<<8)|body[1];let p=2+tl;if(qos>0)p+=2;
+        try{this.on.message(td.decode(body.subarray(2,2+tl)),td.decode(body.subarray(p)))}catch(e){}
+      }
+    }
+  }
+  raw(u8){if(this.ws&&this.ws.readyState===1)this.ws.send(u8)}
+  publish(topic,msg,retain){if(!this.ready)return;this.raw(mqPacket(retain?0x31:0x30,[...mqStr(topic),...te.encode(msg)]))}
+  subscribe(filter){const id=this.pid++;this.raw(mqPacket(0x82,[id>>8,id&255,...mqStr(filter),0]))}
+  close(){this.ready=false;clearInterval(this.ping);try{this.raw(new Uint8Array([0xE0,0]));this.ws.close()}catch(e){}}
+}
+
+/* ---------- connect / reconnect ---------- */
+function randomId(){const c="abcdefghijkmnpqrstuvwxyz23456789";let s="";const r=randomBytes(12);for(const x of r)s+=c[x%c.length];return s}
+function netConnect(){
+  if(NET.mode!=="off")return;
+  NET.wanted=true;NET.relay=0;NET.tries=0;NET.myId=(S.profile&&S.profile.pid)||NET.myId||randomId();
+  openRelay();
+}
+function openRelay(){
+  if(!NET.wanted)return;
+  setNetMode("connecting",NET.tries>=RELAYS.length?"중계 서버에 닿지 않아서 계속 다시 시도하고 있어요. 인터넷 연결을 확인해 주세요.":"월드에 들어가는 중이에요…");
+  const url=RELAYS[NET.relay];
+  const cli=new MiniMqtt(url,"mtw"+NET.myId,{topic:TOPIC+"p/"+NET.myId,msg:'{"bye":1}'},{
+    ready(){
+      if(NET.client!==cli)return;
+      clearTimeout(NET.timer);NET.tries=0;
+      cli.subscribe(TOPIC+"p/+");cli.subscribe(TOPIC+"e/"+NET.myId);cli.subscribe(TOPIC+"w");socialSubscribe();
+      NET.joinedAt=Date.now();setNetMode("online");
+      publishMe();
+      setTimeout(()=>{if(NET.mode==="online"&&!S.resume)toast(S.others.size?`월드에 들어왔어요! 나 말고 ${S.others.size}명이 같은 맵에 있어요.`:"월드에 들어왔어요! 아직은 나 혼자예요. 다른 사람이 서버 연결을 누르면 이 맵으로 들어와요.")},3200);
+    },
+    message:onRelayMsg,
+    close(why){
+      if(NET.client!==cli)return;
+      NET.client=null;clearTimeout(NET.timer);
+      if(!NET.wanted)return;
+      if(why==="lost"){S.others.clear();renderOnline();toast("연결이 잠깐 끊겼어요. 다시 들어가는 중이에요…")}
+      else{NET.tries++;NET.relay=(NET.relay+1)%RELAYS.length}
+      NET.timer=setTimeout(openRelay,why==="lost"?500:Math.min(8000,600*NET.tries));
+    }
+  });
+  NET.client=cli;cli.open();
+  NET.timer=setTimeout(()=>{if(NET.client===cli&&!cli.ready){try{cli.ws.close()}catch(e){}}},7000); // relay too slow → next one
+}
+function netDisconnect(){
+  NET.wanted=false;clearTimeout(NET.timer);
+  const c=NET.client;NET.client=null;
+  if(c){if(c.ready)c.publish(TOPIC+"p/"+NET.myId,'{"bye":1}');setTimeout(()=>c.close(),50)}
+  S.others.clear();setNetMode("off");toast("혼자 플레이로 돌아왔어요.");
+}
+
+/* ---------- messages ---------- */
+function myPublic(){const m=S.me,p=S.profile;return{nick:p.nickname,color:p.color,starter:activeSp(),sh:!!(activeMon()&&activeMon().shiny),x:Math.round(m.x),y:Math.round(m.y),d:m.dir,m:m.moving}}
+function cleanPlayer(p){
+  if(!p||typeof p!=="object")return null;
+  const x=Number(p.x),y=Number(p.y);if(!Number.isFinite(x)||!Number.isFinite(y))return null;
+  return{nick:String(p.nick||"트레이너").replace(/[^가-힣A-Za-z0-9]/g,"").slice(0,10)||"트레이너",color:COLORS.includes(p.color)?p.color:COLORS[0],
+    starter:MONS[p.starter]?p.starter:null,sh:!!p.sh,x:clamp(x,-1e7,1e7),y:clamp(y,-1e7,1e7),d:[0,1,2,3].includes(p.d)?p.d:0,m:!!p.m};
+}
+function onRelayMsg(topic,text){
+  if(topic.startsWith(TOPIC+"p/")){
+    const id=topic.slice(TOPIC.length+2);
+    if(!/^[a-z0-9]{6,16}$/.test(id)||id===NET.myId)return;
+    let m;try{m=JSON.parse(text)}catch(e){return}
+    if(m&&m.bye){if(S.others.delete(id))renderOnline();return}
+    const p=cleanPlayer(m);if(!p)return;
+    let o=S.others.get(id);
+    if(!o){
+      if(S.others.size>=MAX_OTHERS)return;
+      o={x:p.x,y:p.y,cx:p.x,cy:p.y+18,cdir:0};S.others.set(id,o);
+      if(Date.now()-NET.joinedAt>3000)toast(`${p.nick} 트레이너가 들어왔어요.`);
+      publishMe(); // let the newcomer see me right away
+      renderOnline();
+    }
+    const starterChanged=o.starter!==p.starter;
+    Object.assign(o,{tx:p.x,ty:p.y,dir:p.d,moving:p.m,nick:p.nick,color:p.color,starter:p.starter,sh:p.sh,seen:Date.now()});
+    if(starterChanged)renderOnline();
+  } else if(topic===TOPIC+"w"){
+    let m;try{m=JSON.parse(text)}catch(e){return}
+    if(m&&typeof m.gone==="string"&&m.gone.length<40)markWildGone(m.gone,m.gone.startsWith("boss_")?BOSS_LIFE*1000:undefined);
+    else if(m&&typeof m.back==="string"&&(!S.battle||S.battle.wildId!==m.back))wildGone.delete(m.back);
+  } else if(topic===TOPIC+"e/"+NET.myId){
+    let m;try{m=JSON.parse(text)}catch(e){return}
+    if(m&&m.t==="battle"){const o=S.others.get(String(m.from));toast(`${o?o.nick:"누군가"}님이 배틀을 신청했어요! 배틀 시스템은 다음 단계에서 열려요.`)}
+    else if(m&&typeof m.t==="string")onSocialMsg(m);
+  } else if(topic.startsWith(TOPIC+"g/")||topic.startsWith(TOPIC+"gc/")){
+    let m;try{m=JSON.parse(text)}catch(e){return}
+    onGuildTopic(topic,m);
+  }
+}
+function publishMe(){
+  if(NET.mode!=="online"||!NET.client)return;
+  NET.lastBeat=performance.now();
+  NET.client.publish(TOPIC+"p/"+NET.myId,JSON.stringify(myPublic()));
+}
+let lastSent=0,lastSentKey="";
+function netSendMove(force){
+  if(NET.mode!=="online")return;
+  const now=performance.now(),m=S.me;
+  const key=`${Math.round(m.x)},${Math.round(m.y)},${m.dir},${m.moving}`;
+  if(!force&&(key===lastSentKey||now-lastSent<90)&&now-NET.lastBeat<2500)return;
+  lastSent=now;lastSentKey=key;publishMe();
+}
+function netSendStarter(){publishMe()}
+function netWildGone(id){if(NET.mode==="online"&&NET.client)NET.client.publish(TOPIC+"w",JSON.stringify({gone:id}))}
+function netWildBack(id){if(NET.mode==="online"&&NET.client)NET.client.publish(TOPIC+"w",JSON.stringify({back:id}))}
+function netBattle(toId){if(NET.mode==="online"&&NET.client)NET.client.publish(TOPIC+"e/"+toId,JSON.stringify({t:"battle",from:NET.myId}))}
+/* players who stopped sending (closed tab without goodbye) disappear */
+setInterval(()=>{
+  if(NET.mode!=="online")return;
+  const now=Date.now();let changed=false;
+  for(const [id,o] of S.others)if(now-(o.seen||0)>9000){S.others.delete(id);changed=true}
+  if(changed)renderOnline();
+},2000);
+
+/* ---- HUD ---- */
+function setNetMode(mode,status){
+  NET.mode=mode;NET.status=status||"";
+  $("net-dot").classList.toggle("off",mode!=="online");
+  renderOnline();renderMenu();
+}
+function renderOnline(){
+  if(!S.profile)return;
+  const n=S.others.size+1;
+  $("net-label").textContent=NET.mode==="online"?`온라인 ${n}명`:NET.mode==="connecting"?"연결하는 중…":"혼자 플레이 중";
+  const ul=$("online-list");ul.textContent="";
+  const add=(nick,col,me)=>{const li=document.createElement("li");const i=document.createElement("i");i.style.background=col;li.appendChild(i);li.appendChild(document.createTextNode(nick+(me?" (나)":"")));ul.appendChild(li)};
+  add(S.profile.nickname,S.profile.color,true);
+  const rest=[...S.others.values()];rest.slice(0,12).forEach(o=>add(o.nick,o.color,false));
+  if(rest.length>12){const li=document.createElement("li");li.textContent=`외 ${rest.length-12}명`;ul.appendChild(li)}
+  if(NET.mode==="off"){const li=document.createElement("li");li.className="hint";li.textContent="ESC → 서버 연결로 같이 하기";ul.appendChild(li)}
+  if(S.menuOpen)renderMenu();
+}
+
+/* ---- ESC menu ---- */
+function openMenu(){if(S.phase!=="game")return;S.menuOpen=true;S.keys.clear();renderMenu();$("menu").hidden=false;$("menu-close").focus()}
+function closeMenu(){S.menuOpen=false;$("menu").hidden=true}
+function renderMenu(){
+  const b=$("menu-net"),st=$("menu-status");if(!b)return;
+  const n=S.others.size+1;
+  if(NET.mode==="off"){b.textContent="서버 연결";st.textContent="서버 연결을 누르면 전 세계 트레이너들이 함께 있는 이 맵에 들어가요. 다른 사람도 서버 연결을 누르면 같은 맵으로 들어와요."}
+  else if(NET.mode==="connecting"){b.textContent="연결 취소";st.textContent=NET.status||"월드에 들어가는 중이에요…"}
+  else{b.textContent="연결 끊기";st.textContent=`온라인 · 지금 ${n}명이 같은 맵에 있어요.`}
+}
+$("menu-net").onclick=()=>{if(NET.mode==="off")netConnect();else netDisconnect()};
+$("menu-close").onclick=closeMenu;
+$("menu-logout").onclick=()=>{if(NET.mode!=="off")netDisconnect();setTimeout(()=>location.reload(),120)};
+$("menu").addEventListener("click",e=>{if(e.target===$("menu"))closeMenu()});
+$("menu-btn").onclick=openMenu;
+$("menu-bag").onclick=()=>{closeMenu();openBag()};
+
+/* ---- full screen (X key) ---- */
+function isFullscreen(){return !!(document.fullscreenElement||document.webkitFullscreenElement||S.appFull)}
+function toggleFullscreen(){
+  // inside the Mac app: ask the app window to go full screen
+  try{if(window.webkit&&webkit.messageHandlers&&webkit.messageHandlers.mtwApp){webkit.messageHandlers.mtwApp.postMessage("toggleFullscreen");S.appFull=!S.appFull;updateFullBtn();return}}catch(e){}
+  const d=document,el=d.documentElement;
+  if(d.fullscreenElement||d.webkitFullscreenElement){(d.exitFullscreen||d.webkitExitFullscreen).call(d);return}
+  const req=el.requestFullscreen||el.webkitRequestFullscreen;
+  if(!req){toast("이 기기에서는 전체 화면을 쓸 수 없어요.");return}
+  try{const r=req.call(el);if(r&&r.catch)r.catch(()=>toast("이 화면에서는 전체 화면을 쓸 수 없어요."))}catch(e){toast("이 화면에서는 전체 화면을 쓸 수 없어요.")}
+}
+function updateFullBtn(){$("menu-full").textContent=isFullscreen()?"전체 화면 끄기 (X)":"전체 화면 (X)"}
+document.addEventListener("fullscreenchange",updateFullBtn);document.addEventListener("webkitfullscreenchange",updateFullBtn);
+window.mtwAppFullscreen=(on)=>{S.appFull=!!on;updateFullBtn()}; // the Mac app reports its window state
+$("menu-full").onclick=()=>{toggleFullscreen();setTimeout(updateFullBtn,300)};
+addEventListener("pagehide",()=>{try{if(!NET.updating&&NET.client&&NET.client.ready)NET.client.publish(TOPIC+"p/"+NET.myId,'{"bye":1}')}catch(e){}});
+
+
+/* =====================================================================
+   INPUT
+   ===================================================================== */
+const isTouch=matchMedia("(pointer:coarse)").matches;
+addEventListener("keydown",e=>{
+  if(S.phase!=="game"||e.target.tagName==="INPUT")return;
+  const k=e.key.toLowerCase();
+  if(["arrowup","arrowdown","arrowleft","arrowright","w","a","s","d"," "].includes(k))e.preventDefault();
+  if(S.learn)return;
+  if(k==="x"){if(!e.repeat)toggleFullscreen();return}
+  if(S.battle){if(/^[1-6]$/.test(k)||k===" ")e.preventDefault();if(!e.repeat)battleKey(k);return}
+  if(S.mapOpen){if(k==="m"||k==="escape")closeMap();else mapKey(k);return}
+  if(k==="b"&&S.modalOpen&&$("bag-list")){closeModal();return}
+  if(k==="escape"){e.preventDefault();if(S.modalOpen)closeModal();else if(S.menuOpen)closeMenu();else openMenu();return}
+  if(S.modalOpen||S.menuOpen)return;
+  if(k==="m"){if(!e.repeat)openMap();return}
+  if(k==="b"){if(!e.repeat&&!S.dialog)openBag();return}
+  if(k==="o"){if(!e.repeat)toggleSocial();return}
+  if(/^[1-6]$/.test(k)){if(!e.repeat&&!S.dialog)switchTo(+k-1);return}
+  if(k==="e"||k===" "||k==="enter"){if(!e.repeat)interact();return}
+  if(k==="f"){if(!e.repeat)battleRequest();return}
+  S.keys.add(k);
+});
+addEventListener("keyup",e=>S.keys.delete(e.key.toLowerCase()));
+addEventListener("blur",()=>S.keys.clear());
+$("dialog").addEventListener("click",()=>advanceDialog());
+$("btn-e").addEventListener("click",()=>interact());
+$("btn-f").addEventListener("click",()=>battleRequest());
+$("btn-m").addEventListener("click",()=>openMap());
+const cvs=$("game");
+cvs.addEventListener("pointerdown",e=>{
+  if(S.phase!=="game"||e.pointerType!=="touch"||S.modalOpen||S.menuOpen||S.battle||S.mapOpen)return;
+  if(S.dialog){advanceDialog();return}
+  const j=S.joy;if(j.active)return;
+  j.active=true;j.id=e.pointerId;j.ox=e.clientX;j.oy=e.clientY;j.x=j.y=0;
+  const st=$("stick");st.style.left=e.clientX+"px";st.style.top=e.clientY+"px";st.hidden=false;$("knob").style.transform="";
+});
+addEventListener("pointermove",e=>{
+  const j=S.joy;if(!j.active||e.pointerId!==j.id)return;
+  let dx=e.clientX-j.ox,dy=e.clientY-j.oy;const d=Math.hypot(dx,dy),max=40;
+  if(d>max){dx*=max/d;dy*=max/d}
+  j.x=dx/max;j.y=dy/max;$("knob").style.transform=`translate(${dx}px,${dy}px)`;
+});
+const endJoy=e=>{const j=S.joy;if(j.active&&e.pointerId===j.id){j.active=false;j.x=j.y=0;$("stick").hidden=true}};
+addEventListener("pointerup",endJoy);addEventListener("pointercancel",endJoy);
+
+
+/* =====================================================================
+   INTERACTION
+   ===================================================================== */
+function nearest(){
+  const m=S.me;let best=null,bd=46;
+  const d1=Math.hypot(PROF.x-m.x,PROF.y-m.y);if(d1<bd){bd=d1;best={type:"prof"}}
+  if(Math.hypot(FOUNTAIN.x-m.x,FOUNTAIN.y-m.y)<66&&S.profile.starter){bd=Math.min(bd,40);best=best||{type:"fountain"}}
+  for(const g of GYMS){const d=Math.hypot((g.tx+0.5)*TS-m.x,g.ty*TS+14-m.y);if(d<bd){bd=d;best={type:"gym",gym:g}}}
+  const ptx=Math.floor(m.x/TS),pty=Math.floor(m.y/TS),seen=new Set();
+  for(let j=-6;j<=2;j+=2)for(let i=-8;i<=8;i+=2){const pl=plotAt(ptx+i,pty+j);if(!pl||seen.has(pl.id))continue;seen.add(pl.id);
+    for(const d of plotDoors(pl)){const dd=Math.hypot(d.x-m.x,d.y-m.y);if(dd<bd){bd=dd;best={type:d.kind,x:d.x,y:d.y}}}}
+  for(const p of PEDESTALS)if(p.kind!==S.profile.starter){const px=p.tx*TS+16,py=p.ty*TS+26;const d=Math.hypot(px-m.x,py-m.y);if(d<bd){bd=d;best={type:"ped",kind:p.kind}}}
+  return best;
+}
+const TUTORIAL_TIPS=[
+  "마을 밖에는 야생 몬스터가 돌아다녀. 부딪히면 배틀이 시작되고, 체력을 깎은 뒤 테이밍 볼을 던지면 동료로 만들 수 있어. 볼이 없으면 테이밍할 수 없단다!",
+  "길을 따라가거나 들판을 헤매다 보면 분홍 지붕 치유센터와 파란 지붕 상점이 있어. 치유센터는 공짜로 회복해 주고, 상점에서는 볼과 상처약을 팔지.",
+  "몬스터마다 태어날 때 개체값이 달라. 아주 드물게 ★특수 개체나 색이 다른 ✨이로치도 있지. 왼쪽 위 팀 목록에서 몬스터를 누르면 능력치와 개체값을 볼 수 있어.",
+  "몬스터는 레벨이 오르면 능력치가 자라고 새 기술을 배워. 기술은 4개까지라서, 새 기술을 배울 때 하나를 잊거나 배우지 않을 수 있단다. Lv30엔 고유 기술, Lv75엔 특수 기술도 있어.",
+  "30분마다 어딘가에 👑보스 몬스터가 나타나. 보스는 개체값이 뛰어나고 특수 기술까지 쓰니 조심해! 지도(M)와 미니맵 빨간 화살표로 위치를 알 수 있어.",
+  "단축키: E 대화·몬스터 교체, 1~6 몬스터 선택, B 가방, M 지도, O 친구·길드, X 전체 화면, ESC 메뉴. ESC → 서버 연결을 누르면 전 세계 트레이너와 같은 맵에서 만나고, 친구와 길드도 만들 수 있어.",
+];
+function nearestPlayer(){
+  let best=null,bd=56;for(const [id,o] of S.others){const d=Math.hypot(o.x-S.me.x,o.y-S.me.y);if(d<bd){bd=d;best=o}}return best;
+}
+function interact(){
+  if(S.phase!=="game"||S.modalOpen||S.menuOpen)return;
+  if(S.dialog){advanceDialog();return}
+  const n=nearest();if(!n){cyclePartner();return}
+  if(n.type==="fountain"){healAll();toast("분수의 맑은 물로 몬스터들이 모두 회복했어요!");return}
+  if(n.type==="heal"){if(!S.profile.party.length){toast("아직 함께하는 몬스터가 없어요.");return}healAll();toast("치유센터에서 몬스터들이 모두 회복했어요!");return}
+  if(n.type==="shop"){openShop();return}
+  if(n.type==="gym"){
+    const g=n.gym,a=activeMon(),have=S.profile.badges.includes(g.id);
+    if(!S.profile.starter){toast("먼저 마을의 한결 박사에게 첫 몬스터를 받아 오세요.");return}
+    const lines=[have?`또 왔구나! ${TYPES[g.type].name} 배지는 이미 네 거지만, 다시 겨뤄 볼까?`:`여기는 ${g.name}! 나는 관장 ${g.leader}이야. ${TYPES[g.type].name} 타입 몬스터로 상대해 주지.`];
+    if(a&&a.lv<g.lv-5)lines.push(`추천 레벨은 Lv${g.lv}이야. 지금 ${SPECIES[a.sp].name}는 Lv${a.lv}… 각오는 됐겠지?`);
+    lines.push("자, 승부다!");
+    openDialog(`관장 ${g.leader}`,lines,()=>startGymBattle(g));return;
+  }
+  if(n.type==="prof"){
+    const p=S.profile;
+    if(p.starter){healAll();openDialog(PROF_NAME,["몬스터들을 모두 회복시켜 줬단다.",...TUTORIAL_TIPS,"더 궁금한 게 있으면 언제든 다시 찾아오렴!"])}
+    else openDialog(PROF_NAME,[
+      `어서 오렴, ${p.nickname}. 나는 이 마을에서 몬스터를 연구하는 한결 박사란다.`,
+      "이 세계에서는 트레이너끼리 서로 싸우지 않아. 마음이 통한 몬스터끼리 실력을 겨루지.",
+      "내 앞의 받침대에 세 친구가 있단다. 물속성 라키, 불속성 푸화, 풀속성 포이.",
+      "받침대 앞에서 E를 누르면 자세히 볼 수 있어. 첫 파트너를 골라 보렴!",
+      "혹시 잘못 골라도 괜찮아. 나중에 다른 받침대 앞에서 E를 누르면 레벨은 그대로 두고 바꿔 줄게."
+    ],()=>{S.talked=true;refreshHud()});
+  } else if(n.type==="ped")openMonCard(n.kind);
+}
+function battleRequest(){
+  if(S.phase!=="game"||S.modalOpen||S.menuOpen||S.dialog)return;
+  const o=nearestPlayer();if(!o)return;
+  if(!activeMon()){toast("배틀하려면 먼저 파트너 몬스터가 있어야 해요.");return}
+  const pid=[...S.others.entries()].find(([k,v])=>v===o)?.[0];
+  if(pid)netBattle(pid);
+  toast(`${o.nick}님에게 배틀을 신청했어요! 배틀 시스템은 다음 단계에서 열려요.`);
+}
+
+/* ---------- dialog ---------- */
+function openDialog(who,lines,onDone){S.dialog={who,lines,i:0,onDone};showLine()}
+function showLine(){const d=S.dialog;$("dlg-who").textContent=d.who;$("dlg-say").textContent=d.lines[d.i];$("dialog").hidden=false}
+function advanceDialog(){const d=S.dialog;if(!d)return;d.i++;if(d.i>=d.lines.length){S.dialog=null;$("dialog").hidden=true;d.onDone&&d.onDone()}else showLine()}
+
+/* ---------- monster card ---------- */
+function openMonCard(kind){
+  const m=MONS[kind],card=$("mon-card");S.modalOpen=true;S.keys.clear();
+  card.innerHTML=`
+    <div class="mon-head"><canvas width="240" height="240" id="mon-art"></canvas>
+      <div><div class="mon-name"></div><span class="chip"></span></div></div>
+    <p class="mon-desc" style="margin:0"></p>
+    <div class="stats" id="mon-stats"></div>
+    <div class="matchup"></div>
+    <div class="row"><button class="btn ghost" id="mc-back" type="button">다시 볼래요</button><button class="btn" id="mc-pick" type="button">이 친구로 할래요</button></div>`;
+  card.querySelector(".mon-name").textContent=m.name;
+  if(S.profile.starter)$("mc-pick").textContent="이 친구로 바꿀래요";
+  const chip=card.querySelector(".chip");chip.textContent=`${m.el}속성`;chip.style.background=m.color;
+  card.querySelector(".mon-desc").textContent=m.desc;
+  card.querySelector(".matchup").textContent=`${m.strong}속성에게 강하고, ${m.weak}속성에게 약해요.  (물 → 불 → 풀 → 물)`;
+  const st=$("mon-stats");
+  for(const [k,v] of Object.entries(m.stats)){
+    const a=document.createElement("span");a.textContent=k;
+    const b=document.createElement("div");b.className="bar";const f=document.createElement("span");f.style.width=Math.round(v/70*100)+"%";f.style.background=m.color;b.appendChild(f);
+    const c=document.createElement("span");c.className="n";c.textContent=v;st.append(a,b,c);
+  }
+  artKind=kind;
+  $("modal").hidden=false;
+  $("mc-back").onclick=closeModal;
+  $("mc-pick").onclick=()=>confirmPick(kind);
+  $("mc-pick").focus();
+}
+let artKind=null;
+function confirmPick(kind){
+  const m=MONS[kind],card=$("mon-card");
+  const row=card.querySelector(".row");
+  row.innerHTML=`<div class="confirm-q" style="flex:1 1 100%"></div><button class="btn ghost" id="cf-no" type="button">아니요</button><button class="btn" id="cf-yes" type="button">네, 결정할게요</button>`;
+  const cur=S.profile.starter&&SPECIES[S.profile.starter].name;
+  row.querySelector(".confirm-q").textContent=cur?`${cur}를 박사님께 맡기고 ${m.name}로 바꿀까요? 레벨·경험치·개체값은 그대로 이어져요.`:`${m.name}를 첫 파트너로 할까요? 나중에 받침대에서 E를 누르면 바꿀 수 있어요.`;
+  $("cf-no").onclick=()=>openMonCard(kind);
+  $("cf-yes").onclick=async()=>{
+    if(S.profile.starter){closeModal();swapStarter(kind);return}
+    $("cf-yes").disabled=true;
+    const ped=PEDESTALS.find(p=>p.kind===kind);
+    await save({starter:kind,starterAt:Date.now(),party:[Object.assign(newMon(kind,5),{st:true})],active:0,x:Math.round(S.me.x),y:Math.round(S.me.y)});
+    S.comp.x=ped.tx*TS+16;S.comp.y=ped.ty*TS+14;
+    closeModal();refreshHud();netSendStarter(kind);
+    toast(`${m.name}가 파트너가 되었어요!`);
+    setTimeout(()=>openDialog(PROF_NAME,[`좋은 선택이야! ${m.name}도 기뻐하는 것 같구나.`,"선물로 테이밍 볼 5개, 상처약 3개, 1,000골드를 가방(B)에 넣어 뒀단다.",...TUTORIAL_TIPS,"첫 체육관은 동쪽 길 끝의 풀 체육관(Lv10)이야. 자, 모험을 떠나 보렴!"],()=>refreshHud()),900);
+  };
+}
+function closeModal(){$("modal").hidden=true;S.modalOpen=false;artKind=null;artShiny=false}
+$("modal").addEventListener("click",e=>{if(e.target===$("modal"))closeModal()});
+
+/* ---------- toast ---------- */
+let toastTimer=0;
+function toast(msg){const t=$("toast");t.textContent=msg;t.hidden=false;t.style.opacity=1;clearTimeout(toastTimer);toastTimer=setTimeout(()=>{t.style.opacity=0;setTimeout(()=>t.hidden=true,260)},2400)}
+
+
+/* =====================================================================
+   PARTY — up to 6 monsters, one summoned (follows you), levels, moves
+   ===================================================================== */
+const PARTY_MAX=6;
+function ensureParty(p){
+  if(!Array.isArray(p.party))p.party=[];
+  if(!Array.isArray(p.box))p.box=[];
+  if(!Array.isArray(p.badges))p.badges=[];
+  if(!Number.isFinite(p.gold))p.gold=START_GOLD;
+  if(typeof p.pid!=="string"||!/^[a-z0-9]{12}$/.test(p.pid))p.pid=randomId();
+  if(!Array.isArray(p.friends))p.friends=[];if(!Array.isArray(p.freqIn))p.freqIn=[];if(!Array.isArray(p.freqOut))p.freqOut=[];
+  if(!Array.isArray(p.ginv))p.ginv=[];if(p.guild===undefined)p.guild=null;
+  if(!p.bag||typeof p.bag!=="object")p.bag={...START_BAG};
+  for(const k in p.bag)if(!ITEMS[k]||!(p.bag[k]>0))delete p.bag[k];
+  if(p.starter&&!p.party.length)p.party.push(Object.assign(newMon(p.starter,5),{st:true})); // saves from before levels existed
+  if(p.starter&&!p.party.concat(p.box).some(m=>m.st)){const f=p.party.concat(p.box).find(m=>m.sp===p.starter);if(f)f.st=true}
+  p.party=p.party.filter(m=>m&&SPECIES[m.sp]);
+  for(const m of p.party.concat(p.box)){
+    m.lv=clamp(m.lv|0||1,1,MAX_LV);m.xp=Math.max(0,m.xp|0);
+    if(!Array.isArray(m.moves)||!m.moves.length)m.moves=movesKnownAt(m.sp,m.lv);
+    m.moves=m.moves.filter(id=>MOVES[id]).slice(0,4);
+    const mx=monStats(m).hp;if(!Number.isFinite(m.hp))m.hp=mx;m.hp=clamp(m.hp,0,mx);
+    if(!m.uid)m.uid=Math.random().toString(36).slice(2,9);
+    if(!m.iv){const r=rollIVs(Math.random);m.iv=r.iv;m.special=r.special}
+    m.special=!!m.special;m.shiny=!!m.shiny;
+  }
+  if(!Number.isInteger(p.active)||p.active<0||p.active>=p.party.length)p.active=0;
+}
+const party=()=>S.profile?S.profile.party:[];
+function activeMon(){const p=S.profile;if(!p||!p.party.length)return null;const m=p.party[p.active];return m&&m.hp>0?m:null}
+const activeSp=()=>{const m=activeMon();return m?m.sp:null};
+const healthy=()=>party().filter(m=>m.hp>0);
+function saveProfile(){save({})}
+
+function switchTo(i,quiet){
+  const p=S.profile;if(!p||!p.party[i])return;
+  const m=p.party[i];
+  if(m.hp<=0){if(!quiet)toast(`${SPECIES[m.sp].name}는 기절해서 나올 수 없어요. 마을 분수에서 회복하세요.`);return}
+  if(p.active===i){if(!quiet)toast(`${SPECIES[m.sp].name}가 이미 함께하고 있어요.`);return}
+  p.active=i;S.comp.x=S.me.x;S.comp.y=S.me.y+4;
+  renderParty();netSendStarter();saveProfile();
+  if(!quiet)toast(`${SPECIES[m.sp].name}, 나와라!`);
+}
+function cyclePartner(){
+  const p=S.profile;if(!p||!p.party.length){toast("아직 함께하는 몬스터가 없어요.");return}
+  if(p.party.length===1){toast(`몬스터가 ${SPECIES[p.party[0].sp].name} 한 마리뿐이에요. 야생 몬스터를 테이밍해 보세요!`);return}
+  for(let k=1;k<=p.party.length;k++){const i=(p.active+k)%p.party.length;if(p.party[i].hp>0){switchTo(i);return}}
+  toast("나올 수 있는 몬스터가 없어요. 마을 분수에서 회복하세요.");
+}
+function healAll(){
+  for(const m of party().concat(S.profile.box))m.hp=monStats(m).hp;
+  const a=S.profile.party[S.profile.active];if(!a||a.hp<=0)S.profile.active=0;
+  renderParty();saveProfile();
+}
+function addMonster(m){
+  const p=S.profile;
+  if(p.party.length<PARTY_MAX){p.party.push(m);renderParty();saveProfile();return "party"}
+  p.box.push(m);saveProfile();return "box";
+}
+
+/* ---- experience & levels ---- */
+async function gainXp(m,amount,say){
+  if(m.lv>=MAX_LV)return;
+  m.xp+=amount;
+  await say(`${SPECIES[m.sp].name}가 경험치 ${amount}을 얻었어요.`);
+  while(m.lv<MAX_LV&&m.xp>=xpNeed(m.lv)){
+    m.xp-=xpNeed(m.lv);
+    const before=monStats(m);m.lv++;const after=monStats(m);
+    m.hp=Math.min(after.hp,m.hp+(after.hp-before.hp));
+    await say(`${SPECIES[m.sp].name}의 레벨이 ${m.lv}이 되었어요!`);
+    for(const [lv,id] of SPECIES[m.sp].learn)if(lv===m.lv)await learnMove(m,id,say);
+  }
+  if(m.lv>=MAX_LV)m.xp=0;
+  renderParty();
+}
+/* learn a move; with 4 already, the player picks one to forget or skips */
+function learnMove(m,id,say){
+  if(m.moves.includes(id))return Promise.resolve();
+  const mv=MOVES[id],name=SPECIES[m.sp].name;
+  if(m.moves.length<4){m.moves.push(id);return say(`${name}가 ${mv.n}${mv.sp?` (${mv.sp} 기술)`:""}을(를) 배웠어요!`)}
+  return new Promise(res=>{
+    S.learn={m,id};
+    $("learn-title").textContent=`${name}가 ${mv.sp?mv.sp+" 기술 ":"새 기술 "}「${mv.n}」을 배우려고 해요`;
+    $("learn-sub").textContent=`기술은 4개까지만 알 수 있어요. 잊을 기술을 고르거나, 이번에는 배우지 않을 수 있어요.`;
+    const list=$("learn-list");list.textContent="";
+    const row=(mid,isNew)=>{const b=document.createElement("button");b.type="button";b.className="mv"+(isNew?" new":"");
+      const M=MOVES[mid],l=document.createElement("span");l.textContent=M.n;
+      const tag=document.createElement("span");tag.className="tag";tag.style.background=TYPES[M.t].color;tag.textContent=TYPES[M.t].name;l.appendChild(tag);
+      const r=document.createElement("small");r.textContent=moveDesc(M);b.append(l,r);return b};
+    const head=row(id,true);head.disabled=true;head.style.cursor="default";head.querySelector("small").textContent="새 기술 · "+moveDesc(mv);list.appendChild(head);
+    const done=(text)=>{$("learn").hidden=true;S.learn=null;renderParty();saveProfile();say(text).then(res)};
+    m.moves.forEach((mid,i)=>{const b=row(mid,false);b.querySelector("small").textContent=moveDesc(MOVES[mid])+" · 잊기";
+      b.onclick=()=>{const old=MOVES[mid].n;m.moves[i]=id;done(`${name}가 ${old}을(를) 잊고 ${mv.n}을(를) 배웠어요!`)};list.appendChild(b)});
+    const skip=document.createElement("button");skip.type="button";skip.className="btn ghost";skip.textContent="배우지 않기";
+    skip.onclick=()=>done(`${name}는 ${mv.n}을(를) 배우지 않았어요.`);list.appendChild(skip);
+    $("learn").hidden=false;skip.focus();
+  });
+}
+function moveDesc(M){
+  if(M.kind==="heal")return`체력 ${Math.round(M.frac*100)}% 회복`;
+  if(M.kind==="buff")return`${STAT_KO[M.stat]} 올리기${M.also?` · ${STAT_KO[M.also[0]]}↑`:""}`;
+  if(M.kind==="debuff")return`상대 ${STAT_KO[M.stat]} 내리기`;
+  return`위력 ${M.p} · 명중 ${M.a}${M.prio?" · 선공":""}`;
+}
+const STAT_KO=STAT_NAME;
+
+/* ---- HUD ---- */
+function drawIcon(cv,sp,bg,shiny){
+  const c=cv.getContext("2d");c.setTransform(1,0,0,1,0,0);c.clearRect(0,0,cv.width,cv.height);
+  if(bg){c.fillStyle=bg;c.fillRect(0,0,cv.width,cv.height)}
+  const s=cv.width/34;c.setTransform(s,0,0,s,0,0);drawMon(c,sp,17,28,0.5,0,false,1,shiny);
+}
+function renderParty(){
+  const p=S.profile;if(!p)return;
+  $("me-name").textContent=p.nickname;
+  $("badges").textContent=`배지 ${p.badges.length}/${GYMS.length} · ${p.gold.toLocaleString()}G`;
+  const ol=$("party-list");ol.textContent="";
+  if(!p.party.length){const d=document.createElement("div");d.className="party-empty";d.textContent="아직 몬스터가 없어요";ol.appendChild(d);return}
+  p.party.forEach((m,i)=>{
+    const st=monStats(m),li=document.createElement("li"),b=document.createElement("button");b.type="button";
+    b.className=(i===p.active&&m.hp>0?"on":"")+(m.hp<=0?" down":"");
+    b.title=`${i+1}번 · ${SPECIES[m.sp].name}`;
+    const cv=document.createElement("canvas");cv.width=cv.height=68;drawIcon(cv,m.sp,null,m.shiny);
+    const info=document.createElement("div");
+    const top=document.createElement("div");top.className="pm-top";
+    const nm=document.createElement("b");nm.textContent=`${i+1}. ${m.shiny?"✨":""}${m.special?"★":""}${SPECIES[m.sp].name}`;
+    const lv=document.createElement("span");lv.textContent=`Lv${m.lv}`;top.append(nm,lv);
+    const hb=document.createElement("div");hb.className="bar2";const hi=document.createElement("i");
+    const r=m.hp/st.hp;hi.style.width=Math.round(r*100)+"%";hi.style.background=r>.5?"var(--grass)":r>.2?"var(--sun)":"var(--danger)";hb.appendChild(hi);
+    const xb=document.createElement("div");xb.className="bar2 xp";const xi=document.createElement("i");xi.style.width=(m.lv>=MAX_LV?100:Math.round(m.xp/xpNeed(m.lv)*100))+"%";xb.appendChild(xi);
+    info.append(top,hb,xb);b.append(cv,info);
+    b.onclick=()=>{if(S.battle)return;openMonInfo(i)};
+    li.appendChild(b);ol.appendChild(li);
+  });
+}
+const DIR8=["동","남동","남","남서","서","북서","북","북동"];
+function dirWord(dx,dy){const a=Math.atan2(dy,dx);return DIR8[(Math.round(a/(Math.PI/4))+8)%8]}
+function nextGoalText(){
+  const p=S.profile;const g=GYMS.find(x=>!p.badges.includes(x.id));
+  if(!g)return"모든 배지를 모았어요! 끝없는 세계를 자유롭게 탐험해 보세요.";
+  const tx=S.me.x/TS,ty=S.me.y/TS,dx=g.tx-tx,dy=g.ty-ty,d=Math.round(Math.hypot(dx,dy));
+  return d<6?`${g.name}(Lv${g.lv}) 문 앞이에요. E로 도전하세요!`:`${g.name}(Lv${g.lv}) 도전 · ${dirWord(dx,dy)}쪽 ${d}칸 · 지도는 M`;
+}
+
+/* ---- monster details (click a team member) ---- */
+function openMonInfo(i){
+  const m=S.profile.party[i];if(!m)return;
+  const sp=SPECIES[m.sp],st=monStats(m),card=$("mon-card");S.modalOpen=true;S.keys.clear();
+  card.innerHTML=`
+    <div class="mon-head"><canvas width="240" height="240" id="mon-art"></canvas>
+      <div style="min-width:0"><div class="mon-name"></div><div id="mi-tags" style="display:flex;gap:6px;flex-wrap:wrap"></div><div id="mi-lv" class="sub" style="margin-top:6px"></div></div></div>
+    <div class="stats" id="mon-stats" style="grid-template-columns:auto 1fr auto auto"></div>
+    <div class="matchup" id="mi-iv"></div>
+    <div id="mi-moves" style="display:grid;gap:6px"></div>
+    <div class="row"><button class="btn ghost" id="mi-close" type="button">닫기</button><button class="btn" id="mi-summon" type="button">소환하기</button></div>`;
+  card.querySelector(".mon-name").textContent=sp.name;
+  const tags=$("mi-tags"),tag=(txt,bg)=>{const t=document.createElement("span");t.className="chip";t.textContent=txt;t.style.background=bg;tags.appendChild(t)};
+  tag(`${TYPES[sp.type].name}속성`,TYPES[sp.type].color);
+  if(m.shiny)tag("✨ 이로치","#ffe08a");if(m.special)tag("★ 특수 개체","#ff9f6b");if(m.st)tag("첫 파트너","#cfe3ff");
+  $("mi-lv").textContent=`Lv${m.lv} · 다음 레벨까지 ${m.lv>=MAX_LV?"-":xpNeed(m.lv)-m.xp} EXP · 체력 ${m.hp}/${st.hp}`;
+  const box=$("mon-stats");
+  const head=["능력치","개체값","",""];head.forEach(h=>{const e=document.createElement("span");e.className="n";e.style.textAlign="left";e.textContent=h;box.appendChild(e)});
+  for(const k of STAT_KEYS){
+    const name=document.createElement("span");name.textContent=STAT_NAME[k];
+    const bar=document.createElement("div");bar.className="bar";const f=document.createElement("span");const v=(m.iv[k]|0);
+    f.style.width=Math.round(v/31*100)+"%";f.style.background=v>=28?"#ffd24a":v>=20?"#5cc65a":v>=10?"#4aa8ff":"#9db3ad";bar.appendChild(f);
+    const iv=document.createElement("span");iv.className="n";iv.textContent=v+"/31";
+    const val=document.createElement("span");val.className="n";val.style.color="var(--text)";val.textContent=k==="eva"?st.eva+"%":st[k];
+    box.append(name,bar,iv,val);
+  }
+  $("mi-iv").textContent=`개체값 등급 ${ivGrade(m)} (합계 ${ivTotal(m)}/${31*STAT_KEYS.length})${m.special?" · 특수 개체라 모든 능력치 +15%":""}. 개체값은 태어날 때 정해지고, 레벨이 오를 때마다 능력치가 이만큼 더 크게 자라요.`;
+  const mv=$("mi-moves");
+  m.moves.forEach(id=>{const M=MOVES[id],d=document.createElement("div");d.className="mv learn-row";
+    d.style.cssText="display:flex;justify-content:space-between;gap:8px;padding:8px 10px;border-radius:6px;background:var(--panel-2);font-size:14px";
+    const l=document.createElement("span");l.textContent=M.n+(M.sp?` (${M.sp})`:"");const tg=document.createElement("span");tg.className="tag";tg.style.background=TYPES[M.t].color;tg.textContent=TYPES[M.t].name+(M.kind?"":moveCat(id)==="s"?"·특수":"·물리");l.appendChild(tg);
+    const r=document.createElement("small");r.style.color="var(--muted)";r.textContent=moveDesc(M);d.append(l,r);mv.appendChild(d)});
+  const next=sp.learn.find(e=>e[0]>m.lv);
+  if(next){const d=document.createElement("div");d.className="sub";d.style.fontSize="13px";d.textContent=`다음 기술: Lv${next[0]}에 ${MOVES[next[1]].n}${MOVES[next[1]].sp?` (${MOVES[next[1]].sp} 기술)`:""}`;mv.appendChild(d)}
+  artKind=m.sp;artShiny=m.shiny;$("modal").hidden=false;
+  $("mi-close").onclick=closeModal;
+  const sb=$("mi-summon");sb.disabled=m.hp<=0||S.profile.active===i;sb.textContent=m.hp<=0?"기절 상태":S.profile.active===i?"함께하는 중":"소환하기";
+  sb.onclick=()=>{closeModal();switchTo(i)};
+}
+let artShiny=false;
+
+/* ---- swap the first partner at the pedestals ---- */
+function swapStarter(kind){
+  const p=S.profile,m=p.party.concat(p.box).find(x=>x.st);
+  if(!m){toast("첫 파트너를 찾을 수 없어요.");return false}
+  const ratio=m.hp/monStats(m).hp,old=SPECIES[m.sp].name;
+  m.sp=kind;m.moves=movesKnownAt(kind,m.lv);m.hp=Math.max(m.hp>0?1:0,Math.round(monStats(m).hp*ratio));
+  p.starter=kind;renderParty();saveProfile();netSendStarter();
+  toast(`${old}를 박사님께 맡기고 ${SPECIES[kind].name}와 함께하기로 했어요!`);
+  return true;
+}
+
+/* ---- gold, bag, shop ---- */
+const bagCount=(k)=>(S.profile.bag[k]|0);
+function bagAdd(k,n){const b=S.profile.bag;b[k]=Math.max(0,(b[k]|0)+n);if(!b[k])delete b[k]}
+function addGold(n){S.profile.gold=Math.max(0,S.profile.gold+n);renderParty()}
+function usePotionOn(key,m){
+  const it=ITEMS[key],st=monStats(m);
+  if(!bagCount(key))return null;
+  if(m.hp<=0)return"기절한 몬스터는 치유센터에서만 회복할 수 있어요.";
+  if(m.hp>=st.hp)return`${SPECIES[m.sp].name}는 이미 체력이 가득해요.`;
+  const before=m.hp;m.hp=Math.min(st.hp,m.hp+it.heal);bagAdd(key,-1);renderParty();saveProfile();
+  return`${SPECIES[m.sp].name}의 체력이 ${m.hp-before} 회복됐어요.`;
+}
+function openShop(){
+  S.modalOpen=true;S.keys.clear();artKind=null;
+  const card=$("mon-card");
+  const draw=()=>{
+    card.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px"><div class="mon-name" style="font-size:26px">상점</div><div id="shop-gold" style="font-family:var(--display);color:var(--sun);font-size:18px"></div></div>
+      <p class="sub" style="margin:0">배틀에서 이기면 골드를 받아요. 테이밍은 볼이 있어야 할 수 있어요.</p><div id="shop-list" style="display:grid;gap:8px"></div>
+      <div class="row"><button class="btn ghost" id="shop-close" type="button">나가기</button></div>`;
+    $("shop-gold").textContent=`${S.profile.gold.toLocaleString()}G`;
+    const list=$("shop-list");
+    for(const [k,it] of Object.entries(ITEMS)){
+      const row=document.createElement("div");row.style.cssText="display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:center;padding:10px 12px;border-radius:6px;background:var(--panel-2)";
+      const nm=document.createElement("b");nm.style.cssText="font-family:var(--display);font-weight:400;font-size:16px";nm.textContent=`${it.n}  ·  ${it.price}G`;
+      const own=document.createElement("small");own.style.color="var(--muted)";own.textContent=`가진 개수 ${bagCount(k)}`;own.style.textAlign="right";
+      const ds=document.createElement("small");ds.style.color="var(--muted)";ds.textContent=it.desc;
+      const btns=document.createElement("div");btns.style.cssText="display:flex;gap:6px";
+      for(const n of [1,5]){const b=document.createElement("button");b.type="button";b.className="btn";b.style.cssText="padding:6px 10px;font-size:14px";b.textContent=`${n}개 사기`;
+        b.disabled=S.profile.gold<it.price*n;b.onclick=()=>{if(S.profile.gold<it.price*n)return;addGold(-it.price*n);bagAdd(k,n);saveProfile();toast(`${it.n} ${n}개를 샀어요.`);draw()};btns.appendChild(b)}
+      row.append(nm,own,ds,btns);list.appendChild(row);
+    }
+    $("shop-close").onclick=closeModal;
+  };
+  draw();$("modal").hidden=false;
+}
+function openBag(){
+  if(S.phase!=="game"||S.battle)return;
+  S.modalOpen=true;S.keys.clear();artKind=null;
+  const card=$("mon-card");
+  const draw=(msg)=>{
+    card.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px"><div class="mon-name" style="font-size:26px">가방</div><div style="font-family:var(--display);color:var(--sun);font-size:18px">${S.profile.gold.toLocaleString()}G</div></div>
+      <p class="sub" id="bag-msg" style="margin:0"></p><div id="bag-list" style="display:grid;gap:8px"></div><div class="row"><button class="btn ghost" id="bag-close" type="button">닫기 (B)</button></div>`;
+    $("bag-msg").textContent=msg||"상처약을 누르면 회복할 몬스터를 고를 수 있어요. 볼은 배틀에서 테이밍할 때 써요.";
+    const list=$("bag-list"),keys=Object.keys(ITEMS).filter(k=>bagCount(k));
+    if(!keys.length){const d=document.createElement("div");d.className="sub";d.textContent="가방이 비어 있어요. 상점에서 살 수 있어요.";list.appendChild(d)}
+    for(const k of keys){const it=ITEMS[k],b=document.createElement("button");b.type="button";b.className="mv";
+      b.style.cssText="display:flex;justify-content:space-between;padding:10px 12px;border-radius:6px;border:2px solid var(--line);background:var(--panel-2);color:var(--text)";
+      const l=document.createElement("span");l.textContent=`${it.n} × ${bagCount(k)}`;const r=document.createElement("small");r.style.color="var(--muted)";r.textContent=it.desc;b.append(l,r);
+      if(it.kind==="heal")b.onclick=()=>pick(k);else{b.disabled=true;b.style.cursor="default"}list.appendChild(b)}
+    $("bag-close").onclick=closeModal;
+  };
+  const pick=(k)=>{
+    const list=$("bag-list");list.textContent="";$("bag-msg").textContent=`${ITEMS[k].n}을(를) 누구에게 쓸까요?`;
+    S.profile.party.forEach(m=>{const st=monStats(m),b=document.createElement("button");b.type="button";b.className="btn ghost";b.style.textAlign="left";
+      b.textContent=`${SPECIES[m.sp].name} Lv${m.lv} · HP ${m.hp}/${st.hp}`;b.onclick=()=>draw(usePotionOn(k,m)||"");list.appendChild(b)});
+    const back=document.createElement("button");back.type="button";back.className="btn ghost";back.textContent="뒤로";back.onclick=()=>draw();list.appendChild(back);
+  };
+  draw();$("modal").hidden=false;
+}
+
+/* =====================================================================
+   BATTLE — turn-based: wild (can tame / run) and gym (leader's team)
+   ===================================================================== */
+const stageMul=(s)=>s>=0?(2+s)/2:2/(2-s);
+const sleep=(ms)=>new Promise(r=>setTimeout(r,ms));
+let sayResolve=null;
+function bsay(text,ms=950){
+  $("blog").textContent=text;
+  return new Promise(r=>{sayResolve=r;setTimeout(()=>{if(sayResolve===r){sayResolve=null;r()}},ms)});
+}
+function skipSay(){if(sayResolve){const r=sayResolve;sayResolve=null;r()}}
+$("blog").addEventListener("click",skipSay);
+
+function startWildBattle(w){
+  if(S.battle||!healthy().length)return;
+  markWildGone(w.id,60000);netWildGone(w.id);
+  const foe=newMon(w.sp,w.lv,{rnd:seededRnd(w.id),special:w.boss||undefined,shiny:w.boss?w.shiny:undefined,extraMove:w.boss?"u_"+SPECIES[w.sp].type:undefined});
+  if(w.boss)markWildGone(w.id,BOSS_LIFE*1000);
+  openBattle({kind:"wild",wildId:w.id,boss:!!w.boss,foes:[foe],fi:0,title:`야생 ${SPECIES[w.sp].name}`});
+  bsay(w.boss?`👑 보스 ${foe.shiny?"✨이로치 ":""}${SPECIES[w.sp].name}(Lv${w.lv})가 길을 막았어요! 특수 개체에 특수 기술까지 가졌어요!`:`야생 ${foe.shiny?"✨이로치 ":""}${SPECIES[w.sp].name}(Lv${w.lv})가 나타났어요!`,w.boss?1800:1100).then(()=>{bsay(`${SPECIES[myMon().sp].name}, 부탁해!`,700).then(()=>battleReady())});
+}
+function startGymBattle(g){
+  if(S.battle)return;
+  if(!healthy().length){toast("싸울 수 있는 몬스터가 없어요. 마을 분수에서 회복하세요.");return}
+  const foes=g.team.map(([sp,lv])=>newMon(sp,lv));
+  openBattle({kind:"gym",gym:g,foes,fi:0,title:`관장 ${g.leader}`});
+  bsay(`${g.name} 관장 ${g.leader}이(가) 승부를 걸어왔어요!`,1300)
+    .then(()=>bsay(`관장 ${g.leader}은(는) ${SPECIES[foes[0].sp].name}(Lv${foes[0].lv})을(를) 내보냈어요!`,1100))
+    .then(()=>bsay(`${SPECIES[myMon().sp].name}, 부탁해!`,700)).then(()=>battleReady());
+}
+function openBattle(b){
+  const p=S.profile;
+  if(!p.party[p.active]||p.party[p.active].hp<=0)p.active=p.party.findIndex(m=>m.hp>0);
+  b.my={atk:0,def:0,spa:0,sdf:0,spe:0,eva:0};b.op={atk:0,def:0,spa:0,sdf:0,spe:0,eva:0};if(b.boss)b.op.def=b.op.sdf=1;b.busy=true;b.anim=null;b.t0=performance.now();
+  S.battle=b;S.keys.clear();closeMenu();
+  $("battle").hidden=false;$("bswitch").hidden=true;$("bmoves").hidden=false;
+  $("b-tame").hidden=b.kind!=="wild";$("b-run").hidden=b.kind!=="wild";
+  renderBattleUI();resizeBattle();
+}
+const myMon=()=>S.profile.party[S.profile.active];
+const foeMon=()=>S.battle.foes[S.battle.fi];
+function battleReady(){if(!S.battle)return;S.battle.busy=false;$("blog").textContent=`${SPECIES[myMon().sp].name}는 무엇을 할까요?`;renderBattleUI()}
+
+function renderBattleUI(){
+  const b=S.battle;if(!b)return;
+  const m=myMon(),box=$("bmoves");box.textContent="";
+  m.moves.forEach((id,i)=>{const M=MOVES[id],btn=document.createElement("button");btn.type="button";
+    const nm=document.createElement("b");const dot=document.createElement("i");dot.style.background=TYPES[M.t].color;nm.append(dot,document.createTextNode(`${i+1}. ${M.n}`));
+    const sm=document.createElement("small");sm.textContent=(M.sp?M.sp+" · ":"")+moveDesc(M);
+    btn.append(nm,sm);btn.disabled=b.busy;btn.onclick=()=>playerTurn({move:i});box.appendChild(btn)});
+  for(const id of ["b-tame","b-bag","b-switch","b-run"])$(id).disabled=b.busy;
+  const balls=Object.keys(ITEMS).filter(k=>ITEMS[k].kind==="ball").reduce((a,k)=>a+bagCount(k),0);
+  $("b-tame").textContent=`테이밍 (T) · 볼 ${balls}`;
+  $("b-switch").disabled=b.busy||healthy().length<2;
+}
+$("b-tame").onclick=()=>chooseBall();
+$("b-bag").onclick=()=>chooseItem();
+function choicePanel(title,rows){
+  const box=$("bswitch");box.textContent="";$("blog").textContent=title;
+  for(const r of rows){const btn=document.createElement("button");btn.type="button";btn.textContent=r.label;const sm=document.createElement("small");sm.textContent=r.sub||"";btn.appendChild(sm);btn.disabled=!!r.disabled;
+    btn.onclick=()=>{box.hidden=true;$("bmoves").hidden=false;r.go()};box.appendChild(btn)}
+  const back=document.createElement("button");back.type="button";back.textContent="취소";back.onclick=()=>{box.hidden=true;$("bmoves").hidden=false;battleReady()};box.appendChild(back);
+  $("bmoves").hidden=true;box.hidden=false;
+}
+function chooseBall(){
+  const b=S.battle;if(!b||b.busy||b.kind!=="wild")return;
+  const keys=Object.keys(ITEMS).filter(k=>ITEMS[k].kind==="ball"&&bagCount(k));
+  if(!keys.length){$("blog").textContent="테이밍 볼이 없어요! 치유센터 옆 상점에서 살 수 있어요.";return}
+  if(keys.length===1)return playerTurn({tame:keys[0]});
+  choicePanel("어떤 볼을 던질까요?",keys.map(k=>({label:`${ITEMS[k].n} × ${bagCount(k)}`,sub:`성공률 ×${ITEMS[k].rate}`,go:()=>playerTurn({tame:k})})));
+}
+function chooseItem(){
+  const b=S.battle;if(!b||b.busy)return;
+  const keys=Object.keys(ITEMS).filter(k=>ITEMS[k].kind==="heal"&&bagCount(k));
+  if(!keys.length){$("blog").textContent="쓸 수 있는 상처약이 없어요.";return}
+  const m=myMon(),st=monStats(m);
+  choicePanel(`${SPECIES[m.sp].name}에게 쓸 약을 고르세요 (HP ${m.hp}/${st.hp})`,keys.map(k=>({label:`${ITEMS[k].n} × ${bagCount(k)}`,sub:ITEMS[k].desc,disabled:m.hp>=st.hp,go:()=>playerTurn({item:k})})));
+}
+$("b-run").onclick=()=>playerTurn({run:true});
+$("b-switch").onclick=()=>openSwitch(false);
+function openSwitch(forced){
+  const b=S.battle;if(!b||(b.busy&&!forced))return;
+  const box=$("bswitch");box.textContent="";
+  S.profile.party.forEach((m,i)=>{
+    const btn=document.createElement("button");btn.type="button";const st=monStats(m);
+    btn.textContent=`${i+1}. ${SPECIES[m.sp].name} Lv${m.lv}`;const sm=document.createElement("small");sm.textContent=m.hp>0?`HP ${m.hp}/${st.hp}`:"기절";btn.appendChild(sm);
+    btn.disabled=m.hp<=0||i===S.profile.active;
+    btn.onclick=()=>{box.hidden=true;$("bmoves").hidden=false;if(forced)forcedSwitch(i);else playerTurn({switchTo:i})};
+    box.appendChild(btn);
+  });
+  if(!forced){const back=document.createElement("button");back.type="button";back.textContent="취소";back.onclick=()=>{box.hidden=true;$("bmoves").hidden=false};box.appendChild(back)}
+  $("bmoves").hidden=true;box.hidden=false;
+}
+function battleKey(k){
+  const b=S.battle;if(!b||S.learn)return;
+  if(sayResolve&&(k==="enter"||k===" "||k==="e")){skipSay();return}
+  if(!$("bswitch").hidden){if(k==="escape"&&!b.forced){$("bswitch").hidden=true;$("bmoves").hidden=false}else if(/^[1-6]$/.test(k)){const btn=$("bswitch").children[+k-1];if(btn&&!btn.disabled)btn.click()}return}
+  if(b.busy)return;
+  if(/^[1-4]$/.test(k)&&myMon().moves[+k-1])playerTurn({move:+k-1});
+  else if(k==="t"&&b.kind==="wild")chooseBall();
+  else if(k==="b")chooseItem();
+  else if(k==="r"&&b.kind==="wild")playerTurn({run:true});
+  else if(k==="c")openSwitch(false);
+}
+
+/* ---- AI ---- */
+function foeChoose(foe,me){
+  const st=monStats(foe);let best=null,bv=-1;
+  for(const id of foe.moves){const M=MOVES[id];let v;
+    if(M.kind==="heal")v=foe.hp/st.hp<.35?120:5;
+    else if(M.kind)v=S.battle.op[M.stat]<1?28:3;
+    else v=M.p*(M.a/100)*effOf(M.t,SPECIES[me.sp].type)*(M.t===SPECIES[foe.sp].type?1.5:1);
+    v*=0.75+Math.random()*0.5;if(v>bv){bv=v;best=id}}
+  return best;
+}
+
+/* ---- one round ---- */
+async function playerTurn(act){
+  const b=S.battle;if(!b||b.busy)return;
+  b.busy=true;renderBattleUI();
+  const me=myMon(),foe=foeMon();
+  if(act.run){
+    const ms=monStats(me).spe*stageMul(b.my.spe),fs=monStats(foe).spe*stageMul(b.op.spe);
+    if(Math.random()<Math.min(.95,.45+.35*ms/fs)){await bsay("무사히 도망쳤어요!");wildGone.delete(b.wildId);netWildBack(b.wildId);S.encounterCool=Date.now()+4000;return endBattle()}
+    await bsay("도망칠 수 없었어요!");
+    await foeAct(foe,me);return afterRound();
+  }
+  if(act.item){
+    const msg=usePotionOn(act.item,me);await bsay(msg||"약을 쓸 수 없었어요.");
+    await foeAct(foe,me);return afterRound();
+  }
+  if(act.tame){
+    bagAdd(act.tame,-1);saveProfile();
+    await bsay(`${ITEMS[act.tame].n}을(를) 던졌어요!`,800);
+    const fst=monStats(foe),base=(1-0.7*foe.hp/fst.hp)*clamp(1.15-(foe.lv-me.lv)*0.04,0.25,1.3)*0.6+0.05;
+    const chance=clamp(base*ITEMS[act.tame].rate*(b.boss?0.45:1),0.02,0.95);
+    b.anim={who:"tame",t:performance.now()};
+    for(let i=0;i<3;i++){await sleep(420);if(Math.random()>Math.pow(chance,1/3)){b.anim=null;await bsay(`${SPECIES[foe.sp].name}가 마음을 열지 않았어요!`);await foeAct(foe,me);return afterRound()}}
+    b.anim=null;
+    const where=addMonster(foe);
+    markWildGone(b.wildId,b.boss?BOSS_LIFE*1000:undefined);netWildGone(b.wildId);
+    await bsay(`야호! ${b.boss?"보스 ":""}${SPECIES[foe.sp].name}(Lv${foe.lv})를 테이밍했어요!`,1300);
+    if(where==="box")await bsay(`팀이 가득 차서 ${SPECIES[foe.sp].name}는 보관함으로 갔어요.`,1200);
+    else await bsay(`${SPECIES[foe.sp].name}가 팀에 들어왔어요. E나 숫자 키로 교체할 수 있어요.`,1300);
+    return endBattle();
+  }
+  if(act.switchTo!=null){
+    S.profile.active=act.switchTo;b.my={atk:0,def:0,spa:0,sdf:0,spe:0,eva:0};
+    await bsay(`${SPECIES[me.sp].name}, 돌아와! ${SPECIES[myMon().sp].name}, 부탁해!`,1000);
+    await foeAct(foe,myMon());return afterRound();
+  }
+  // both attack, faster first
+  const myMv=me.moves[act.move],foeMv=foeChoose(foe,me);
+  const mp=MOVES[myMv].prio||0,fp=MOVES[foeMv].prio||0;
+  const ms=monStats(me).spe*stageMul(b.my.spe),fs=monStats(foe).spe*stageMul(b.op.spe);
+  const meFirst=mp!==fp?mp>fp:ms!==fs?ms>fs:Math.random()<.5;
+  if(meFirst){await doMove(me,foe,myMv,"my");if(foe.hp>0&&me.hp>0)await doMove(foe,me,foeMv,"op")}
+  else{await doMove(foe,me,foeMv,"op");if(me.hp>0&&foe.hp>0)await doMove(me,foe,myMv,"my")}
+  return afterRound();
+}
+async function foeAct(foe,me){if(foe.hp>0&&me.hp>0)await doMove(foe,me,foeChoose(foe,me),"op")}
+
+async function doMove(att,def,id,side){
+  const b=S.battle,M=MOVES[id],mine=side==="my",aSt=mine?b.my:b.op,dSt=mine?b.op:b.my;
+  const who=mine?SPECIES[att.sp].name:(b.kind==="wild"?"야생 ":"상대 ")+SPECIES[att.sp].name;
+  await bsay(`${who}의 ${M.n}!`,700);
+  if(M.kind==="heal"){const mx=monStats(att).hp,h=Math.max(1,Math.round(mx*M.frac));att.hp=Math.min(mx,att.hp+h);renderParty();return bsay(`${who}의 체력이 회복되었어요.`,800)}
+  if(M.kind==="buff"){aSt[M.stat]=Math.min(3,aSt[M.stat]+M.st);if(M.also)aSt[M.also[0]]=Math.min(3,aSt[M.also[0]]+M.also[1]);return bsay(`${who}의 ${STAT_KO[M.stat]}${M.also?"과 "+STAT_KO[M.also[0]]:""}이(가) 올라갔어요!`,850)}
+  if(M.kind==="debuff"){dSt[M.stat]=Math.max(-3,dSt[M.stat]-M.st);return bsay(`상대의 ${STAT_KO[M.stat]}이(가) 떨어졌어요!`,850)}
+  if(Math.random()*100>=M.a/stageMul(dSt.eva))return bsay("하지만 빗나갔어요!",800);
+  if(Math.random()*100<monStats(def).eva)return bsay(`${mine?"상대":SPECIES[def.sp].name}가 날렵하게 피했어요!`,800);
+  const sp=moveCat(id)==="s",A=monStats(att)[sp?"spa":"atk"]*stageMul(aSt[sp?"spa":"atk"]),D=monStats(def)[sp?"sdf":"def"]*stageMul(dSt[sp?"sdf":"def"]);
+  const eff=effOf(M.t,SPECIES[def.sp].type),stab=M.t===SPECIES[att.sp].type?1.5:1,crit=Math.random()<1/16?1.5:1;
+  let dmg=Math.floor(Math.floor((2*att.lv/5+2)*M.p*A/D)/50)+2;
+  dmg=Math.max(1,Math.floor(dmg*stab*eff*crit*(0.85+Math.random()*0.15)));
+  def.hp=Math.max(0,def.hp-dmg);b.anim={who:mine?"op":"my",t:performance.now()};
+  renderParty();
+  if(crit>1)await bsay("급소에 맞았어요!",650);
+  if(eff>1)await bsay("효과가 굉장했어요!",750);else if(eff<1)await bsay("효과가 별로인 것 같아요…",750);
+  if(M.lower&&def.hp>0){dSt[M.lower[0]]=Math.max(-3,dSt[M.lower[0]]-M.lower[1]);await bsay(`상대의 ${STAT_KO[M.lower[0]]}이(가) 떨어졌어요!`,700)}
+}
+async function afterRound(){
+  const b=S.battle,foe=foeMon(),me=myMon();
+  if(foe.hp<=0){
+    await bsay(`${b.kind==="wild"?"야생 ":"상대 "}${SPECIES[foe.sp].name}가 쓰러졌어요!`);
+    const xp=Math.max(1,Math.floor(SPECIES[foe.sp].xp*foe.lv/7*(b.kind==="gym"?1.5:1)));
+    if(me.hp>0)await gainXp(me,xp,bsay);
+    for(const m of S.profile.party)if(m!==me&&m.hp>0&&m.lv<MAX_LV){m.xp+=Math.floor(xp/4)}
+    for(const m of S.profile.party)while(m!==me&&m.lv<MAX_LV&&m.xp>=xpNeed(m.lv)){m.xp-=xpNeed(m.lv);m.lv++;for(const [lv,id] of SPECIES[m.sp].learn)if(lv===m.lv)await learnMove(m,id,bsay);await bsay(`함께 있던 ${SPECIES[m.sp].name}도 레벨 ${m.lv}이 되었어요!`,900)}
+    const gold=b.kind==="gym"?b.gym.lv*60+300:b.boss?foe.lv*60+500:foe.lv*8+20;
+    if(b.kind==="wild"||b.fi===b.foes.length-1){addGold(gold);await bsay(`${gold.toLocaleString()}골드를 얻었어요!`,900)}
+    if(b.boss)await bsay("보스를 쓰러뜨렸어요! 다음 보스는 30분마다 나타나요.",1300);
+    if(b.kind==="wild"){markWildGone(b.wildId,b.boss?BOSS_LIFE*1000:undefined);netWildGone(b.wildId);return endBattle()}
+    if(b.fi<b.foes.length-1){
+      b.fi++;b.op={atk:0,def:0,spa:0,sdf:0,spe:0,eva:0};
+      await bsay(`관장 ${b.gym.leader}은(는) ${SPECIES[foeMon().sp].name}(Lv${foeMon().lv})을(를) 내보냈어요!`,1100);
+      return battleReady();
+    }
+    const g=b.gym;
+    if(!S.profile.badges.includes(g.id))S.profile.badges.push(g.id);
+    await bsay(`관장 ${g.leader}에게 이겼어요! ${TYPES[g.type].name} 배지를 받았어요!`,1600);
+    return endBattle();
+  }
+  if(me.hp<=0){
+    await bsay(`${SPECIES[me.sp].name}가 쓰러졌어요…`);
+    if(healthy().length){b.forced=true;$("blog").textContent="다음에 내보낼 몬스터를 고르세요.";openSwitch(true);return}
+    await bsay("싸울 수 있는 몬스터가 없어요… 눈앞이 깜깜해졌어요.",1500);
+    if(b.kind==="wild"){wildGone.delete(b.wildId);netWildBack(b.wildId)}
+    endBattle();
+    S.me.x=SPAWN.x;S.me.y=SPAWN.y;S.comp.x=SPAWN.x;S.comp.y=SPAWN.y+18;healAll();
+    toast("마을에서 깨어났어요. 몬스터들이 모두 회복했어요.");
+    return;
+  }
+  battleReady();
+}
+async function forcedSwitch(i){
+  const b=S.battle;b.forced=false;S.profile.active=i;b.my={atk:0,def:0,spa:0,sdf:0,spe:0,eva:0};
+  await bsay(`${SPECIES[myMon().sp].name}, 부탁해!`,800);battleReady();
+}
+function endBattle(){
+  const p=S.profile;if(!p.party[p.active]||p.party[p.active].hp<=0){const i=p.party.findIndex(m=>m.hp>0);if(i>=0)p.active=i}
+  S.battle=null;sayResolve=null;$("battle").hidden=true;
+  S.encounterCool=Math.max(S.encounterCool,Date.now()+2500);
+  S.comp.x=S.me.x;S.comp.y=S.me.y+10;
+  renderParty();refreshHud();saveProfile();netSendStarter();
+}
+
+/* ---- battle scene ---- */
+const bcv=$("bcv"),bctx=bcv.getContext("2d");let BW=0,BH=0;
+function resizeBattle(){const r=bcv.getBoundingClientRect();BW=r.width;BH=r.height;bcv.width=Math.round(BW*DPR);bcv.height=Math.round(BH*DPR)}
+addEventListener("resize",()=>{if(S.battle)resizeBattle()});
+function hpBox(c,x,y,w,mon,showNum,crown){
+  const st=monStats(mon),r=mon.hp/st.hp;
+  c.fillStyle="rgba(18,28,34,.88)";c.beginPath();c.roundRect(x,y,w,showNum?62:50,8);c.fill();
+  c.fillStyle="#eef4f1";c.font="17px Jua, sans-serif";c.textAlign="left";c.textBaseline="top";c.fillText((crown?"👑 보스 ":"")+(mon.shiny?"✨":"")+(mon.special?"★":"")+SPECIES[mon.sp].name,x+12,y+8);
+  c.textAlign="right";c.fillStyle="#9db3ad";c.fillText(`Lv${mon.lv}`,x+w-12,y+8);
+  const tc=TYPES[SPECIES[mon.sp].type];
+  c.fillStyle="#0b1216";c.beginPath();c.roundRect(x+12,y+32,w-24,8,4);c.fill();
+  c.fillStyle=r>.5?"#5cc65a":r>.2?"#ffd24a":"#ff6b6b";c.beginPath();c.roundRect(x+12,y+32,Math.max(0,(w-24)*r),8,4);c.fill();
+  if(showNum){c.fillStyle="#9db3ad";c.font="13px Gowun Dodum, sans-serif";c.textAlign="right";c.fillText(`${mon.hp} / ${st.hp}`,x+w-12,y+44);
+    c.textAlign="left";c.fillStyle=tc.color;c.fillText(tc.name,x+12,y+44)}
+}
+function renderBattle(){
+  const b=S.battle;if(!b)return;
+  if(!BW)resizeBattle();
+  const c=bctx,w=BW,h=BH,t=S.t,now=performance.now();
+  c.setTransform(DPR,0,0,DPR,0,0);
+  const P=PAL[biomeAt(Math.floor(S.me.x/TS),Math.floor(S.me.y/TS))]||PAL.meadow;
+  const sky=c.createLinearGradient(0,0,0,h*0.5);sky.addColorStop(0,"#1c3340");sky.addColorStop(1,"#3d6a78");c.fillStyle=sky;c.fillRect(0,0,w,h*0.5);
+  const gr=c.createLinearGradient(0,h*0.5,0,h);gr.addColorStop(0,P.tall);gr.addColorStop(1,P.g);c.fillStyle=gr;c.fillRect(0,h*0.5,w,h*0.5);
+  c.fillStyle="rgba(255,255,255,.06)";for(let i=0;i<5;i++)c.fillRect(0,h*0.5+i*h*0.1,w,2);
+  const s=Math.min(w/230,h/150,5.5);
+  const fx=w*0.7,fy=h*0.42,mx=w*0.3,my=h*0.86;
+  ellipse(c,fx,fy+4,40*s/2.2,10*s/2.2,P.s);ellipse(c,mx,my+4,48*s/2.2,12*s/2.2,P.s);
+  const shake=(who)=>b.anim&&b.anim.who===who&&now-b.anim.t<380?Math.sin((now-b.anim.t)/22)*6:0;
+  const blink=(who)=>b.anim&&b.anim.who===who&&now-b.anim.t<380&&Math.floor((now-b.anim.t)/60)%2===0;
+  const foe=foeMon(),me=myMon();
+  if(foe&&foe.hp>0&&!blink("op")){
+    if(b.anim&&b.anim.who==="tame"){const k=Math.sin((now-b.anim.t)/90)*0.15;c.save();c.translate(fx,fy);c.rotate(k);c.translate(-fx,-fy);drawMon(c,foe.sp,fx,fy,t,1,false,s,foe.shiny);c.restore();
+      c.strokeStyle="rgba(255,210,74,.8)";c.lineWidth=3;c.beginPath();c.arc(fx,fy-10*s,(16+((now-b.anim.t)/20)%14)*s,0,7);c.stroke()}
+    else drawMon(c,foe.sp,fx+shake("op"),fy,t,1,false,s*(b.boss?1.35:1),foe.shiny);
+  }
+  if(me&&me.hp>0&&!blink("my"))drawMon(c,me.sp,mx+shake("my"),my,t,2,false,s*1.15,me.shiny);
+  const bw=Math.min(300,w*0.44);
+  if(foe)hpBox(c,16,16,bw,foe,false,b.boss);
+  if(me)hpBox(c,w-bw-16,h-78,bw,me,true);
+  c.fillStyle="#ffd24a";c.font="15px Jua, sans-serif";c.textAlign="right";c.textBaseline="top";
+  if(b.kind==="gym")c.fillText(`관장 ${b.gym.leader} · ${b.foes.map((m,i)=>i<b.fi?"○":"●").join(" ")}`,w-16,18);
+}
+
+/* =====================================================================
+   WORLD MAP (M) — drawn in blocks on demand, so it covers an endless world
+   ===================================================================== */
+const MAPB=96, MAPSTEP=3;               // tiles per block, tiles per map pixel
+const mapBlocks=new Map();
+const BIOME_KO={meadow:"들판",grass:"풀숲",bug:"벌레 숲",fire:"화산",water:"호수",dragon:"드래곤 산",fighting:"격투 고원"};
+const WM={cx:TOWN.cx,cy:TOWN.cy,scale:1.2,drag:null};
+function mapColor(tx,ty){
+  const t=baseTile(tx,ty),b=biomeAt(tx,ty),P=PAL[b]||PAL.meadow;
+  switch(t){
+    case T.WATER:return"#3f8fd6";case T.LAVA:return"#c8401e";case T.TREE:return P.tree[0];case T.ROCK:return b==="fire"?"#3e3530":"#7d7a76";
+    case T.CRYSTAL:return"#8a6be0";case T.PATH:case T.BRIDGE:return"#e3c48c";case T.PLAZA:case T.FOUNTAIN:case T.PEDESTAL:return"#d8d2c4";
+    case T.HOUSE:return"#c4523f";case T.GYM:case T.GYMFLOOR:{const g=gymZone(tx,ty);return g?g.color:"#ccc"}
+    case T.HEAL:return"#ff6f9a";case T.SHOP:return"#4f8fff";
+    case T.TALL:return P.tall;default:return P.g;
+  }
+}
+function mapBlock(bx,by){
+  const key=bx+","+by;let cv=mapBlocks.get(key);if(cv)return cv;
+  const n=MAPB/MAPSTEP;cv=document.createElement("canvas");cv.width=cv.height=n;
+  const c=cv.getContext("2d"),img=c.createImageData(n,n);
+  for(let j=0;j<n;j++)for(let i=0;i<n;i++){
+    const col=mapColor(bx*MAPB+i*MAPSTEP+1,by*MAPB+j*MAPSTEP+1),o=(j*n+i)*4;
+    img.data[o]=parseInt(col.slice(1,3),16);img.data[o+1]=parseInt(col.slice(3,5),16);img.data[o+2]=parseInt(col.slice(5,7),16);img.data[o+3]=255;
+  }
+  c.putImageData(img,0,0);mapBlocks.set(key,cv);return cv;
+}
+function openMap(){
+  if(S.phase!=="game"||S.battle)return;
+  S.mapOpen=true;S.keys.clear();$("wmap").hidden=false;
+  WM.cx=S.me.x/TS;WM.cy=S.me.y/TS;
+  const lg=$("wm-legend");if(!lg.childElementCount){
+    for(const b of BIOMES){const sp=document.createElement("span"),i=document.createElement("i");i.style.background=PAL[b].g;sp.append(i,document.createTextNode(BIOME_KO[b]));lg.appendChild(sp)}
+    for(const [c,nm] of [["#ff6f9a","치유센터"],["#4f8fff","상점"]]){const sp=document.createElement("span"),i=document.createElement("i");i.style.background=c;sp.append(i,document.createTextNode(nm));lg.appendChild(sp)}
+    const tip=document.createElement("span");tip.textContent="끌어서 이동 · 휠/＋－ 확대 · 체육관에서 멀어질수록 몬스터가 강해져요";lg.appendChild(tip);
+  }
+}
+function closeMap(){S.mapOpen=false;$("wmap").hidden=true}
+$("wm-close").onclick=closeMap;
+const wmc=$("wmc"),wctx=wmc.getContext("2d");
+wmc.addEventListener("pointerdown",e=>{WM.drag={x:e.clientX,y:e.clientY,cx:WM.cx,cy:WM.cy};wmc.setPointerCapture(e.pointerId)});
+wmc.addEventListener("pointermove",e=>{if(!WM.drag)return;WM.cx=WM.drag.cx-(e.clientX-WM.drag.x)/WM.scale;WM.cy=WM.drag.cy-(e.clientY-WM.drag.y)/WM.scale});
+wmc.addEventListener("pointerup",()=>WM.drag=null);
+wmc.addEventListener("wheel",e=>{e.preventDefault();mapZoom(e.deltaY<0?1.25:0.8)},{passive:false});
+function mapZoom(f){WM.scale=clamp(WM.scale*f,0.35,8)}
+function mapKey(k){if(k==="+"||k==="=")mapZoom(1.25);else if(k==="-"||k==="_")mapZoom(0.8);else if(k==="0"){WM.cx=S.me.x/TS;WM.cy=S.me.y/TS}}
+function renderMap(){
+  const r=wmc.getBoundingClientRect(),w=r.width,h=r.height;
+  if(wmc.width!==Math.round(w*DPR)||wmc.height!==Math.round(h*DPR)){wmc.width=Math.round(w*DPR);wmc.height=Math.round(h*DPR)}
+  const c=wctx,s=WM.scale;c.setTransform(DPR,0,0,DPR,0,0);c.fillStyle="#0b1216";c.fillRect(0,0,w,h);
+  const tx0=WM.cx-w/2/s,ty0=WM.cy-h/2/s,tx1=WM.cx+w/2/s,ty1=WM.cy+h/2/s;
+  c.imageSmoothingEnabled=s<MAPSTEP;
+  let budget=5; // new blocks per frame, so opening the map never freezes
+  for(let by=Math.floor(ty0/MAPB);by<=Math.floor(ty1/MAPB);by++)for(let bx=Math.floor(tx0/MAPB);bx<=Math.floor(tx1/MAPB);bx++){
+    const key=bx+","+by;let cv=mapBlocks.get(key);
+    if(!cv){if(budget--<=0)continue;cv=mapBlock(bx,by)}
+    c.drawImage(cv,(bx*MAPB-tx0)*s,(by*MAPB-ty0)*s,MAPB*s+0.5,MAPB*s+0.5);
+  }
+  const P=(tx,ty)=>[(tx-tx0)*s,(ty-ty0)*s];
+  // level guide rings around town
+  c.lineWidth=1;c.font="12px Jua, sans-serif";c.textAlign="center";c.textBaseline="middle";
+  for(let L=10;L<=90;L+=10){const rr=(L-2)*7.5*s,[ox,oy]=P(TOWN.cx,TOWN.cy);c.strokeStyle="rgba(255,255,255,.18)";c.setLineDash([4,6]);c.beginPath();c.arc(ox,oy,rr,0,7);c.stroke();c.setLineDash([]);
+    if(rr>30){c.fillStyle="rgba(255,255,255,.55)";c.fillText(`야생 Lv${L}`,ox,oy-rr-8)}}
+  // town
+  {const [x,y]=P(TOWN.cx,TOWN.cy);c.fillStyle="#fff";c.beginPath();c.arc(x,y,7,0,7);c.fill();c.fillStyle="#c4523f";c.beginPath();c.arc(x,y,4.5,0,7);c.fill();
+    tag(c,"시작 마을 · 회복",x,y-18,"#eef4f1")}
+  // gyms
+  for(const g of GYMS){const [x,y]=P(g.tx+0.5,g.ty-2),done=S.profile.badges.includes(g.id);
+    c.fillStyle="#fff";c.beginPath();c.arc(x,y,12,0,7);c.fill();c.fillStyle=g.color;c.beginPath();c.arc(x,y,9.5,0,7);c.fill();
+    c.fillStyle="#fff";c.font="12px Jua, sans-serif";c.fillText(TYPES[g.type].name[0],x,y+1);
+    tag(c,`Lv${g.lv} ${g.name}${done?" ✓":""}`,x,y-22,done?"#9db3ad":"#ffd24a")}
+  // boss
+  {const b=currentBoss();if(b){const [x,y]=P(b.x/TS,b.y/TS),r=12+Math.sin(S.t*5)*2;
+    c.fillStyle="rgba(255,70,50,.35)";c.beginPath();c.arc(x,y,r+8,0,7);c.fill();c.fillStyle="#ff5a3c";c.beginPath();c.arc(x,y,r-2,0,7);c.fill();
+    c.fillStyle="#fff";c.font="14px Jua, sans-serif";c.textAlign="center";c.textBaseline="middle";c.fillText("👑",x,y+1);
+    tag(c,`보스 ${b.shiny?"✨":""}${SPECIES[b.sp].name} Lv${b.lv} · ${mmss(b.endsAt-Date.now())} 남음`,x,y-26,"#ffb3a3")}
+   else{c.textAlign="right";c.fillStyle="rgba(255,179,163,.9)";c.font="13px Jua, sans-serif";c.fillText(`다음 보스까지 ${mmss(nextBossAt()-Date.now())}`,w-12,h-14)}}
+  // players
+  for(const o of S.others.values()){const [x,y]=P(o.x/TS,o.y/TS);c.fillStyle=o.color;c.beginPath();c.arc(x,y,4,0,7);c.fill()}
+  {const [x,y]=P(S.me.x/TS,S.me.y/TS),pulse=4+Math.sin(S.t*6)*1.5;
+    c.strokeStyle="#ffd24a";c.lineWidth=2;c.beginPath();c.arc(x,y,pulse+5,0,7);c.stroke();
+    c.fillStyle="#fff";c.beginPath();c.arc(x,y,5,0,7);c.fill();c.fillStyle=S.profile.color;c.beginPath();c.arc(x,y,3.5,0,7);c.fill();
+    tag(c,"나",x,y+16,"#ffd24a")}
+  // biome name under the cursor area center
+  c.textAlign="left";c.fillStyle="rgba(238,244,241,.8)";c.font="13px Gowun Dodum, sans-serif";
+  const ctx_=Math.floor(WM.cx),cty=Math.floor(WM.cy);c.fillText(`가운데: ${BIOME_KO[biomeAt(ctx_,cty)]} · 야생 Lv${levelAt(ctx_,cty)} 전후`,12,h-14);
+}
+function tag(c,text,x,y,col){
+  c.font="12px Jua, sans-serif";const tw=c.measureText(text).width+12;
+  c.fillStyle="rgba(10,18,22,.82)";c.beginPath();c.roundRect(x-tw/2,y-9,tw,18,5);c.fill();
+  c.fillStyle=col;c.textAlign="center";c.textBaseline="middle";c.fillText(text,x,y+0.5);
+}
+{ // zoom buttons for touch screens
+  const hd=$("wmap").querySelector("header"),box=document.createElement("div");box.style.cssText="display:flex;gap:8px";
+  for(const [lab,f] of [["＋",1.4],["－",0.7]]){const b=document.createElement("button");b.type="button";b.className="btn ghost";b.textContent=lab;b.style.cssText="padding:8px 14px;font-size:15px";b.onclick=()=>mapZoom(f);box.appendChild(b)}
+  box.appendChild($("wm-close"));hd.appendChild(box);
+}
+
+/* =====================================================================
+   LIVE UPDATE — when a new version is published at the game's address,
+   swap to it in about a second, keeping login, position and connection.
+   ===================================================================== */
+const GAME_VERSION="0.7.0";
+const UPDATE_CHECK_MS=15000;
+let pendingUpdate=null;
+async function checkForUpdate(){
+  if(!/^https?:$/.test(location.protocol)||pendingUpdate)return; // a downloaded file can't update itself
+  try{
+    const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)return;
+    const v=await r.json();
+    if(v&&typeof v.version==="string"&&v.version!==GAME_VERSION)pendingUpdate=v.version;
+  }catch(e){}
+}
+function updateBlocked(){
+  if(S.phase==="game")return S.modalOpen||!!S.dialog||!!S.battle||!!S.learn; // let the player finish reading / choosing first
+  return [...document.querySelectorAll("#auth input")].some(i=>i.value&&i.type!=="checkbox"); // don't wipe a half-filled form
+}
+function applyUpdate(){
+  if(!pendingUpdate||NET.updating||updateBlocked())return;
+  NET.updating=true;
+  const resume={v:pendingUpdate,at:Date.now(),phase:S.phase};
+  if(S.phase==="game"){
+    Object.assign(resume,{x:Math.round(S.me.x),y:Math.round(S.me.y),dir:S.me.dir,cx:Math.round(S.comp.x),cy:Math.round(S.comp.y),talked:S.talked,net:NET.wanted,myId:NET.myId});
+    if(S.profile.starter){S.profile.x=resume.x;S.profile.y=resume.y}
+    try{localStorage.setItem(LS_KEY,JSON.stringify(S.profile))}catch(e){}
+  }
+  try{sessionStorage.setItem("mtw-resume",JSON.stringify(resume))}catch(e){}
+  // leave the relay quietly: others keep seeing me until I'm back a moment later
+  NET.wanted=false;clearTimeout(NET.timer);if(NET.client)NET.client.close();
+  const u=new URL(location.href);u.searchParams.set("v",pendingUpdate);u.hash="";
+  location.replace(u.toString());
+}
+setInterval(checkForUpdate,UPDATE_CHECK_MS);setTimeout(checkForUpdate,3000);
+
+function update(dt){
+  S.t+=dt;
+  if(pendingUpdate)applyUpdate();
+  if(S.phase!=="game")return;
+  const m=S.me;let vx=0,vy=0;
+  if(!S.dialog&&!S.modalOpen&&!S.menuOpen&&!S.battle&&!S.mapOpen&&!S.learn){
+    const k=S.keys;
+    if(k.has("a")||k.has("arrowleft"))vx-=1;if(k.has("d")||k.has("arrowright"))vx+=1;
+    if(k.has("w")||k.has("arrowup"))vy-=1;if(k.has("s")||k.has("arrowdown"))vy+=1;
+    if(S.joy.active&&Math.hypot(S.joy.x,S.joy.y)>0.2){vx=S.joy.x;vy=S.joy.y}
+  }
+  const len=Math.hypot(vx,vy);
+  m.moving=len>0.1;
+  if(m.moving){
+    const sp=150*Math.min(1,len)/len; vx*=sp;vy*=sp;
+    if(Math.abs(vx)>Math.abs(vy))m.dir=vx<0?1:2;else m.dir=vy<0?3:0;
+    const nx=m.x+vx*dt,ny=m.y+vy*dt;
+    if(!blocked(nx,m.y))m.x=nx; if(!blocked(m.x,ny))m.y=ny;
+    S.movedSinceSave=true;
+  } else if(S.movedSinceSave&&performance.now()-S.lastSave>5000&&S.profile.starter){
+    S.lastSave=performance.now();S.movedSinceSave=false;save({x:Math.round(m.x),y:Math.round(m.y)});
+  }
+  follow(S.comp,m,dt);
+  // walking into a wild monster starts a battle
+  if(!S.battle&&!S.dialog&&!S.modalOpen&&!S.menuOpen&&!S.mapOpen&&!S.learn&&Date.now()>S.encounterCool&&activeMon()){
+    for(const w of wildNear(m.x,m.y,1))if(Math.hypot(w.x-m.x,w.y-m.y)<(w.boss?30:20)){startWildBattle(w);break}
+  }
+  if((S.t%1)<dt)bossWatch();
+  if((S.t%1)<dt)refreshQuest();
+  for(const o of S.others.values()){
+    const k=Math.min(1,dt*10);o.x+=(o.tx-o.x)*k;o.y+=(o.ty-o.y)*k;
+    const c={x:o.cx,y:o.cy,dir:o.cdir};follow(c,o,dt);o.cx=c.x;o.cy=c.y;o.cdir=c.dir;o.cmov=c.moving;
+  }
+  netSendMove(false);
+  // contextual buttons
+  if(isTouch){
+    const n=nearest(),p=nearestPlayer();
+    const be=$("btn-e");be.classList.toggle("hot",!!n||!!S.dialog);
+    be.innerHTML=S.dialog?"E<br>계속":!n?"E<br>교체":n.type==="prof"?"E<br>말 걸기":n.type==="gym"?"E<br>도전":n.type==="fountain"||n.type==="heal"?"E<br>회복":n.type==="shop"?"E<br>상점":"E<br>살펴보기";
+    $("btn-f").hidden=!p;
+  }
+}
+function follow(c,lead,dt){
+  const back=[[0,-1],[1,0],[-1,0],[0,1]][lead.dir]; // behind the leader
+  const tx=lead.x+back[0]*22,ty=lead.y+back[1]*20+(lead.dir===0?-2:0);
+  const dx=tx-c.x,dy=ty-c.y,d=Math.hypot(dx,dy);
+  c.moving=d>3;
+  if(d>2){const k=Math.min(1,dt*6);c.x+=dx*k;c.y+=dy*k;
+    if(Math.abs(dx)>Math.abs(dy))c.dir=dx<0?1:2;else c.dir=dy<0?3:0}
+  else c.dir=lead.dir;
+  if(d>200){c.x=tx;c.y=ty}
+}
+
+function bossWatch(){
+  const b=currentBoss();
+  if(b&&S.lastBossAnn!==b.id&&S.profile&&S.profile.starter){S.lastBossAnn=b.id;
+    const dx=b.tx-S.me.x/TS,dy=b.ty-S.me.y/TS;
+    toast(`👑 보스 ${b.shiny?"✨이로치 ":""}${SPECIES[b.sp].name}(Lv${b.lv}) 등장! ${dirWord(dx,dy)}쪽 ${Math.round(Math.hypot(dx,dy))}칸 · ${mmss(b.endsAt-Date.now())} 남음 · M 지도 확인`)}
+}
+function refreshQuest(){if(S.profile&&S.profile.starter&&!$("quest").hidden)$("quest-text").textContent=nextGoalText()}
+
+/* =====================================================================
+   FRIENDS & GUILD — no central server: each player keeps their own lists,
+   requests travel through the relay to players who are online right now.
+   A guild's member list lives on the relay as a retained message the
+   leader keeps up to date.
+   ===================================================================== */
+const SOC={open:false,tab:"friends",chat:[],roster:null};
+const fmtCode=(pid)=>pid.replace(/(.{4})(.{4})(.{4})/,"$1-$2-$3");
+const parseCode=(s)=>String(s||"").toLowerCase().replace(/[^a-z0-9]/g,"");
+const isFriend=(pid)=>S.profile.friends.some(f=>f.pid===pid);
+const onlineNick=(pid)=>{const o=S.others.get(pid);return o?o.nick:null};
+function sendTo(pid,msg){
+  if(NET.mode!=="online"||!NET.client)return false;
+  NET.client.publish(TOPIC+"e/"+pid,JSON.stringify({...msg,from:NET.myId,nick:S.profile.nickname}));return true;
+}
+function needOnline(){if(NET.mode!=="online"){toast("먼저 ESC → 서버 연결을 눌러 온라인으로 들어가 주세요.");return true}return false}
+const cleanNick=(n)=>String(n||"트레이너").replace(/[^가-힣A-Za-z0-9]/g,"").slice(0,10)||"트레이너";
+const cleanGName=(n)=>String(n||"").replace(/[^가-힣A-Za-z0-9 ]/g,"").trim().slice(0,12);
+
+/* ---- friends ---- */
+function friendRequest(pid){
+  if(needOnline())return;
+  pid=parseCode(pid);
+  if(!/^[a-z0-9]{12}$/.test(pid)){toast("친구 코드는 12자리예요. (예: abcd-efgh-ijkl)");return}
+  if(pid===S.profile.pid){toast("내 코드는 신청할 수 없어요.");return}
+  if(isFriend(pid)){toast("이미 친구예요.");return}
+  if(!S.others.has(pid)){toast("그 트레이너는 지금 접속 중이 아니에요. 접속해 있을 때 다시 신청해 주세요.");return}
+  if(S.profile.freqIn.some(r=>r.pid===pid)){acceptFriend(pid);return}
+  sendTo(pid,{t:"freq"});
+  if(!S.profile.freqOut.includes(pid))S.profile.freqOut.push(pid);
+  saveProfile();toast(`${onlineNick(pid)}님에게 친구 신청을 보냈어요.`);renderSocial();
+}
+function acceptFriend(pid){
+  const r=S.profile.freqIn.find(x=>x.pid===pid);if(!r)return;
+  S.profile.freqIn=S.profile.freqIn.filter(x=>x.pid!==pid);
+  if(!isFriend(pid))S.profile.friends.push({pid,nick:r.nick,since:Date.now()});
+  sendTo(pid,{t:"facc"});saveProfile();toast(`${r.nick}님과 친구가 되었어요!`);renderSocial();
+}
+function declineFriend(pid){S.profile.freqIn=S.profile.freqIn.filter(x=>x.pid!==pid);sendTo(pid,{t:"fdec"});saveProfile();renderSocial()}
+function removeFriend(pid){S.profile.friends=S.profile.friends.filter(f=>f.pid!==pid);sendTo(pid,{t:"frem"});saveProfile();renderSocial()}
+
+/* ---- guild ---- */
+const G=()=>S.profile.guild;
+const amLeader=()=>G()&&G().leader===S.profile.pid;
+function publishRoster(){
+  const g=G();if(!g||!amLeader()||NET.mode!=="online")return;
+  g.ver=(g.ver|0)+1;
+  NET.client.publish(TOPIC+"g/"+g.id,JSON.stringify({gid:g.id,name:g.name,leader:g.leader,members:g.members,ver:g.ver}),true);
+}
+function socialSubscribe(){const g=G();if(g&&NET.client){NET.client.subscribe(TOPIC+"g/"+g.id);NET.client.subscribe(TOPIC+"gc/"+g.id);if(amLeader())setTimeout(publishRoster,800)}}
+function createGuild(name){
+  name=cleanGName(name);
+  if(name.length<2){toast("길드 이름은 2~12자의 한글·영문·숫자로 정해 주세요.");return}
+  if(G()){toast("이미 길드에 들어가 있어요.");return}
+  const id=randomId();
+  S.profile.guild={id,name,leader:S.profile.pid,members:{[S.profile.pid]:S.profile.nickname},ver:0,created:Date.now()};
+  saveProfile();socialSubscribe();publishRoster();toast(`길드 「${name}」를 만들었어요! 접속 중인 트레이너를 초대해 보세요.`);renderSocial();
+}
+function inviteGuild(pid){
+  if(needOnline())return;const g=G();
+  if(!g||!amLeader()){toast("길드장만 초대할 수 있어요.");return}
+  if(g.members[pid]){toast("이미 길드원이에요.");return}
+  if(Object.keys(g.members).length>=30){toast("길드원은 30명까지예요.");return}
+  sendTo(pid,{t:"ginv",gid:g.id,name:g.name,leader:g.leader});toast(`${onlineNick(pid)||"트레이너"}님에게 길드 초대를 보냈어요.`);
+}
+function acceptGuild(gid){
+  const inv=S.profile.ginv.find(x=>x.gid===gid);if(!inv)return;
+  if(G()){toast("지금 길드를 먼저 나가야 다른 길드에 들어갈 수 있어요.");return}
+  if(needOnline())return;
+  if(!S.others.has(inv.leader)){toast("길드장이 접속해 있을 때 가입할 수 있어요.");return}
+  sendTo(inv.leader,{t:"gjoin",gid});S.profile.ginv=S.profile.ginv.filter(x=>x.gid!==gid);saveProfile();
+  toast("가입 신청을 보냈어요. 길드장이 확인하면 바로 들어가요.");renderSocial();
+}
+function leaveGuild(){
+  const g=G();if(!g)return;
+  if(amLeader()){ // disband
+    if(NET.mode==="online"){NET.client.publish(TOPIC+"g/"+g.id,JSON.stringify({gid:g.id,disband:true}),true)}
+    toast(`길드 「${g.name}」를 해체했어요.`);
+  } else {sendTo(g.leader,{t:"gleave",gid:g.id});toast(`길드 「${g.name}」에서 나왔어요.`)}
+  S.profile.guild=null;SOC.chat=[];saveProfile();renderSocial();
+}
+function guildChat(text){
+  const g=G();text=String(text||"").replace(/[\u0000-\u001f]/g,"").trim().slice(0,120);if(!g||!text)return;
+  if(needOnline())return;
+  NET.client.publish(TOPIC+"gc/"+g.id,JSON.stringify({from:NET.myId,nick:S.profile.nickname,text,at:Date.now()}));
+}
+function onGuildTopic(topic,m){
+  const g=G();if(!g||!m)return;
+  if(topic===TOPIC+"gc/"+g.id){
+    if(typeof m.text!=="string")return;
+    SOC.chat.push({nick:cleanNick(m.nick),text:m.text.slice(0,120),me:m.from===NET.myId,at:Date.now()});SOC.chat=SOC.chat.slice(-60);
+    if(!m.from||m.from!==NET.myId){if(!SOC.open||SOC.tab!=="guild")toast(`[길드] ${cleanNick(m.nick)}: ${m.text.slice(0,40)}`)}
+    renderSocial();return;
+  }
+  if(topic===TOPIC+"g/"+g.id){
+    if(m.disband){if(!amLeader()){toast(`길드 「${g.name}」가 해체되었어요.`);S.profile.guild=null;saveProfile();renderSocial()}return}
+    if(m.leader!==g.leader||typeof m.members!=="object")return; // only the leader's roster counts
+    if(amLeader())return;
+    if(!m.members[S.profile.pid]){toast(`길드 「${g.name}」에서 빠지게 되었어요.`);S.profile.guild=null;saveProfile();renderSocial();return}
+    const mem={};for(const [k,v] of Object.entries(m.members).slice(0,30))if(/^[a-z0-9]{12}$/.test(k))mem[k]=cleanNick(v);
+    g.members=mem;g.name=cleanGName(m.name)||g.name;saveProfile();renderSocial();
+  }
+}
+function onSocialMsg(m){
+  const from=String(m.from||""),nick=cleanNick(m.nick);
+  if(!/^[a-z0-9]{12}$/.test(from))return;
+  const p=S.profile;
+  switch(m.t){
+    case"freq":if(isFriend(from))return sendTo(from,{t:"facc"});
+      if(p.freqOut.includes(from)){p.freqOut=p.freqOut.filter(x=>x!==from);p.friends.push({pid:from,nick,since:Date.now()});sendTo(from,{t:"facc"});toast(`${nick}님과 친구가 되었어요!`);break}
+      if(!p.freqIn.some(r=>r.pid===from)){p.freqIn.push({pid:from,nick,at:Date.now()});p.freqIn=p.freqIn.slice(-30)}
+      toast(`${nick}님이 친구 신청을 보냈어요. 오른쪽 위 [친구]에서 확인하세요.`);break;
+    case"facc":if(!p.freqOut.includes(from)&&!isFriend(from))return;
+      p.freqOut=p.freqOut.filter(x=>x!==from);if(!isFriend(from))p.friends.push({pid:from,nick,since:Date.now()});toast(`${nick}님이 친구 신청을 수락했어요!`);break;
+    case"fdec":p.freqOut=p.freqOut.filter(x=>x!==from);break;
+    case"frem":p.friends=p.friends.filter(f=>f.pid!==from);break;
+    case"ginv":{const gid=String(m.gid||""),name=cleanGName(m.name),leader=String(m.leader||"");
+      if(!/^[a-z0-9]{12}$/.test(gid)||!name||leader!==from)return;
+      if(!p.ginv.some(x=>x.gid===gid)){p.ginv.push({gid,name,leader,from:nick,at:Date.now()});p.ginv=p.ginv.slice(-10)}
+      toast(`${nick}님이 길드 「${name}」에 초대했어요. [친구] 창의 신청 탭에서 확인하세요.`);break}
+    case"gjoin":{const g=G();if(!g||!amLeader()||m.gid!==g.id)return;
+      if(Object.keys(g.members).length>=30)return;
+      g.members[from]=nick;publishRoster();
+      sendTo(from,{t:"gwelcome",gid:g.id,name:g.name,leader:g.leader,members:g.members});toast(`${nick}님이 길드에 들어왔어요!`);break}
+    case"gwelcome":{if(G())return;const gid=String(m.gid||"");if(!/^[a-z0-9]{12}$/.test(gid)||m.leader!==from)return;
+      const mem={};for(const [k,v] of Object.entries(m.members||{}).slice(0,30))if(/^[a-z0-9]{12}$/.test(k))mem[k]=cleanNick(v);
+      p.guild={id:gid,name:cleanGName(m.name)||"길드",leader:from,members:mem,ver:0};socialSubscribe();toast(`길드 「${p.guild.name}」에 들어왔어요!`);break}
+    case"gleave":{const g=G();if(!g||!amLeader()||m.gid!==g.id||!g.members[from])return;delete g.members[from];publishRoster();toast(`${nick}님이 길드를 나갔어요.`);break}
+    default:return;
+  }
+  saveProfile();renderSocial();
+}
+
+/* ---- panel ---- */
+function toggleSocial(force){
+  if(S.phase!=="game")return;
+  SOC.open=force!=null?force:!SOC.open;$("social").hidden=!SOC.open;placeSocial();renderSocial();
+}
+function placeSocial(){
+  const pn=$("social");if(pn.hidden||innerWidth<=640){pn.style.top="";pn.style.maxHeight="";return}
+  const top=$("online").getBoundingClientRect().bottom+8;pn.style.top=top+"px";pn.style.maxHeight=Math.max(240,innerHeight-top-150)+"px";
+}
+addEventListener("resize",placeSocial);
+function el(tag,attrs,...kids){const e=document.createElement(tag);for(const [k,v] of Object.entries(attrs||{})){if(k==="on")e.onclick=v;else if(k==="cls")e.className=v;else e.setAttribute(k,v)}for(const c of kids)e.append(c);return e}
+function renderSocial(){
+  if(!S.profile)return;
+  const p=S.profile,pending=p.freqIn.length+p.ginv.length;
+  $("soc-btn").textContent=pending?`친구·길드 (${pending})`:"친구·길드";
+  if(!SOC.open)return;
+  for(const t of ["friends","requests","guild"])$("soc-tab-"+t).classList.toggle("on",SOC.tab===t);
+  $("soc-tab-requests").textContent=pending?`신청 ${pending}`:"신청";
+  const body=$("soc-body");body.textContent="";
+  const btn=(txt,fn,cls="sb")=>el("button",{type:"button",cls,on:fn},txt);
+  const sec=(title)=>body.appendChild(el("h4",{},title));
+  if(SOC.tab==="friends"){
+    sec("내 친구 코드");
+    const code=el("div",{cls:"soc-code"},fmtCode(p.pid));
+    body.appendChild(el("div",{cls:"soc-row"},code,btn("복사",()=>{try{navigator.clipboard.writeText(fmtCode(p.pid)).then(()=>toast("친구 코드를 복사했어요."),()=>toast(fmtCode(p.pid)))}catch(e){toast(fmtCode(p.pid))}})));
+    sec("코드로 친구 신청");
+    const inp=el("input",{cls:"t soc-in",id:"soc-code-in",placeholder:"abcd-efgh-ijkl",maxlength:"16",autocomplete:"off"});
+    body.appendChild(el("div",{cls:"soc-row"},inp,btn("신청",()=>friendRequest(inp.value))));
+    sec(`친구 ${p.friends.length}명`);
+    if(!p.friends.length)body.appendChild(el("p",{cls:"soc-empty"},"아직 친구가 없어요. 접속 중인 트레이너에게 신청해 보세요."));
+    for(const f of p.friends){const o=S.others.get(f.pid);
+      let where="오프라인";if(o){const dx=o.x/TS-S.me.x/TS,dy=o.y/TS-S.me.y/TS,d=Math.round(Math.hypot(dx,dy));where=d<3?"바로 옆":`${dirWord(dx,dy)}쪽 ${d}칸`}
+      body.appendChild(el("div",{cls:"soc-item"},el("i",{cls:o?"dot":"dot off"}),el("span",{cls:"nm"},o?o.nick:f.nick),el("small",{},where),btn("삭제",()=>removeFriend(f.pid),"sb ghost")))}
+    sec("지금 접속 중인 트레이너");
+    if(NET.mode!=="online")body.appendChild(el("p",{cls:"soc-empty"},"ESC → 서버 연결을 누르면 다른 트레이너가 보여요."));
+    else if(!S.others.size)body.appendChild(el("p",{cls:"soc-empty"},"지금은 나 혼자예요."));
+    for(const [pid,o] of S.others){
+      const row=el("div",{cls:"soc-item"},el("i",{cls:"dot"}),el("span",{cls:"nm"},o.nick));
+      if(isFriend(pid))row.append(el("small",{},"친구"));
+      else if(p.freqOut.includes(pid))row.append(el("small",{},"신청함"));
+      else if(/^[a-z0-9]{12}$/.test(pid))row.append(btn("친구 신청",()=>friendRequest(pid)));
+      if(amLeader()&&!G().members[pid]&&/^[a-z0-9]{12}$/.test(pid))row.append(btn("길드 초대",()=>inviteGuild(pid)));
+      body.appendChild(row);
+    }
+  } else if(SOC.tab==="requests"){
+    sec("받은 친구 신청");
+    if(!p.freqIn.length)body.appendChild(el("p",{cls:"soc-empty"},"받은 친구 신청이 없어요."));
+    for(const r of p.freqIn)body.appendChild(el("div",{cls:"soc-item"},el("span",{cls:"nm"},r.nick),el("small",{},S.others.has(r.pid)?"접속 중":"오프라인"),btn("수락",()=>acceptFriend(r.pid)),btn("거절",()=>declineFriend(r.pid),"sb ghost")));
+    sec("받은 길드 초대");
+    if(!p.ginv.length)body.appendChild(el("p",{cls:"soc-empty"},"받은 길드 초대가 없어요."));
+    for(const r of p.ginv)body.appendChild(el("div",{cls:"soc-item"},el("span",{cls:"nm"},`「${r.name}」`),el("small",{},`${r.from}님 초대`),btn("가입",()=>acceptGuild(r.gid)),btn("거절",()=>{p.ginv=p.ginv.filter(x=>x.gid!==r.gid);saveProfile();renderSocial()},"sb ghost")));
+    if(p.freqOut.length){sec("보낸 친구 신청");body.appendChild(el("p",{cls:"soc-empty"},`${p.freqOut.length}명에게 보냈어요. 상대가 수락하면 친구가 돼요.`))}
+  } else {
+    const g=G();
+    if(!g){
+      sec("길드 만들기");
+      const inp=el("input",{cls:"t soc-in",id:"soc-gname",placeholder:"길드 이름 (2~12자)",maxlength:"12",autocomplete:"off"});
+      body.appendChild(el("div",{cls:"soc-row"},inp,btn("만들기",()=>createGuild(inp.value))));
+      body.appendChild(el("p",{cls:"soc-empty"},"길드를 만들면 길드장이 돼요. 친구 탭의 접속 중 목록에서 길드원을 초대할 수 있어요. 받은 초대는 신청 탭에 있어요."));
+    } else {
+      const lead=g.members[g.leader]||"길드장";
+      body.appendChild(el("div",{cls:"soc-gname"},`「${g.name}」`));
+      body.appendChild(el("p",{cls:"soc-empty"},`길드장 ${lead} · 길드원 ${Object.keys(g.members).length}명`));
+      sec("길드원");
+      for(const [pid,nick] of Object.entries(g.members)){const on=pid===p.pid||S.others.has(pid);
+        body.appendChild(el("div",{cls:"soc-item"},el("i",{cls:on?"dot":"dot off"}),el("span",{cls:"nm"},nick+(pid===p.pid?" (나)":"")),el("small",{},pid===g.leader?"길드장":on?"접속 중":"오프라인")))}
+      sec("길드 채팅");
+      const log=el("div",{cls:"soc-chat",id:"soc-chat"});
+      if(!SOC.chat.length)log.append(el("p",{cls:"soc-empty"},"접속 중인 길드원과 대화할 수 있어요."));
+      for(const c of SOC.chat)log.append(el("div",{cls:c.me?"me":""},el("b",{},c.nick+": "),c.text));
+      body.appendChild(log);
+      const inp=el("input",{cls:"t soc-in",id:"soc-chat-in",placeholder:"메시지 입력 후 엔터",maxlength:"120",autocomplete:"off"});
+      const sendIt=()=>{guildChat(inp.value);inp.value=""};
+      inp.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.isComposing){e.preventDefault();sendIt()}});
+      body.appendChild(el("div",{cls:"soc-row"},inp,btn("보내기",sendIt)));
+      body.appendChild(btn(amLeader()?"길드 해체":"길드 나가기",()=>{if(SOC.confirmLeave){SOC.confirmLeave=false;leaveGuild()}else{SOC.confirmLeave=true;toast("한 번 더 누르면 "+(amLeader()?"해체돼요.":"나가요."));setTimeout(()=>SOC.confirmLeave=false,3000)}},"sb ghost wide"));
+      log.scrollTop=log.scrollHeight;
+    }
+  }
+}
+for(const t of ["friends","requests","guild"])$("soc-tab-"+t).onclick=()=>{SOC.tab=t;renderSocial()};
+$("soc-btn").onclick=()=>toggleSocial();
+$("soc-close").onclick=()=>toggleSocial(false);
+setInterval(()=>{if(!SOC.open)return;placeSocial();if(SOC.tab==="friends"&&document.activeElement?.id!=="soc-code-in")renderSocial()},3000);
+
+/* ---- install as an app (when opened from the web address) ---- */
+{
+  const standalone=matchMedia("(display-mode: standalone)").matches||navigator.standalone;
+  const web=/^https?:$/.test(location.protocol);
+  $("menu-install").hidden=!web||standalone;
+  $("menu-install").onclick=()=>{
+    closeMenu();
+    const mac=/Macintosh/.test(navigator.userAgent),safari=/Safari/.test(navigator.userAgent)&&!/Chrome|Edg/.test(navigator.userAgent);
+    openDialog("앱으로 설치하기",[
+      safari&&mac?"Mac 사파리: 위쪽 메뉴의 [파일] → [Dock에 추가]를 누르면 Dock에서 앱처럼 열 수 있어요. (macOS Sonoma 이상)"
+        :"크롬·엣지: 주소창 오른쪽의 설치 아이콘을 누르거나, ⋮ 메뉴 → [앱 설치] 또는 [이 사이트를 앱으로 설치]를 눌러요.",
+      "설치해도 게임은 이 주소에서 받아와요. 새 버전이 올라오면 플레이 중에도 자동으로 바뀌어서 다시 다운로드할 필요가 없어요.",
+      "휴대폰: 아이폰 사파리는 공유 버튼 → [홈 화면에 추가], 안드로이드 크롬은 ⋮ → [홈 화면에 추가]를 눌러요."]);
+  };
+}
+
+/* =====================================================================
+   RENDER
+   ===================================================================== */
+const ctx=cvs.getContext("2d");
+let VW=0,VH=0,DPR=1,Z=2;
+function resize(){DPR=Math.min(2,window.devicePixelRatio||1);VW=innerWidth;VH=innerHeight;cvs.width=Math.round(VW*DPR);cvs.height=Math.round(VH*DPR);Z=VW<560?1.5:VW<1100?2:2.4}
+addEventListener("resize",resize);resize();
+
+/* local minimap: tiles around the player */
+const MINI_COL={};
+function miniColor(tx,ty){const t=tileAt(tx,ty),b=biomeAt(tx,ty),P=PAL[b]||PAL.meadow;
+  switch(t){case T.WATER:return"#3f8fd6";case T.LAVA:return"#c8401e";case T.TREE:return P.tree[0];case T.ROCK:return"#6d6a66";case T.CRYSTAL:return"#8a6be0";
+    case T.PATH:case T.BRIDGE:return"#e3c48c";case T.PLAZA:case T.FOUNTAIN:case T.PEDESTAL:case T.GYMFLOOR:return"#d8d2c4";case T.HOUSE:return"#c4523f";case T.GYM:{const g=gymZone(tx,ty);return g?g.color:"#ccc"}
+    case T.TALL:return P.tall;case T.SAND:return P.sand;case T.HEAL:return"#e8608a";case T.SHOP:return"#3f7fd6";default:return P.g}}
+let miniAt=0;
+function drawMinimap(){
+  if(S.t-miniAt<0.25)return;miniAt=S.t;
+  const c=$("mini").getContext("2d"),W=80,H=60,ptx=Math.floor(S.me.x/TS),pty=Math.floor(S.me.y/TS);
+  const img=c.createImageData(W,H);
+  for(let j=0;j<H;j++)for(let i=0;i<W;i++){const col=miniColor(ptx-W/2+i,pty-H/2+j),o=(j*W+i)*4;
+    img.data[o]=parseInt(col.slice(1,3),16);img.data[o+1]=parseInt(col.slice(3,5),16);img.data[o+2]=parseInt(col.slice(5,7),16);img.data[o+3]=255}
+  const tmp=drawMinimap.tmp||(drawMinimap.tmp=Object.assign(document.createElement("canvas"),{width:W,height:H}));
+  tmp.getContext("2d").putImageData(img,0,0);
+  c.imageSmoothingEnabled=false;c.clearRect(0,0,160,120);c.drawImage(tmp,0,0,160,120);
+  const px=(x)=>(x/TS-ptx+W/2)*2,py=(y)=>(y/TS-pty+H/2)*2;
+  for(const w of wildNear(S.me.x,S.me.y,2)){c.fillStyle="#ff6b6b";c.fillRect(px(w.x)-1.5,py(w.y)-1.5,3,3)}
+  for(const o of S.others.values()){c.fillStyle=o.color;c.fillRect(px(o.x)-2,py(o.y)-2,4,4)}
+  const boss=currentBoss();
+  if(boss){const dx=boss.x/TS-ptx,dy=boss.y/TS-pty;
+    if(Math.abs(dx)>W/2-2||Math.abs(dy)>H/2-2){const a=Math.atan2(dy,dx);c.save();c.translate(80+Math.cos(a)*56,60+Math.sin(a)*46);c.rotate(a);c.fillStyle="#ff4a2c";c.strokeStyle="#fff";c.lineWidth=1.5;c.beginPath();c.moveTo(8,0);c.lineTo(-6,-6);c.lineTo(-6,6);c.closePath();c.fill();c.stroke();c.restore()}
+    else{c.fillStyle="#ff4a2c";c.beginPath();c.arc(px(boss.x),py(boss.y),4,0,7);c.fill()}}
+  // arrow to the next gym when it's off the minimap
+  const g=GYMS.find(x=>!S.profile.badges.includes(x.id));
+  if(g){const dx=g.tx-ptx,dy=g.ty-pty;if(Math.abs(dx)>W/2-2||Math.abs(dy)>H/2-2){const a=Math.atan2(dy,dx),r=52;c.save();c.translate(80+Math.cos(a)*r,60+Math.sin(a)*Math.min(r,50));c.rotate(a);
+    c.fillStyle=g.color;c.strokeStyle="#fff";c.lineWidth=1.5;c.beginPath();c.moveTo(7,0);c.lineTo(-5,-5);c.lineTo(-5,5);c.closePath();c.fill();c.stroke();c.restore()}
+    else{c.fillStyle=g.color;c.fillRect(px((g.tx+0.5)*TS)-3,py(g.ty*TS)-3,6,6)}}
+  c.fillStyle="#fff";c.fillRect(77,57,6,6);c.fillStyle=S.profile.color;c.fillRect(78,58,4,4);
+}
+function label(c,text,x,y,col="#fff",bg="rgba(10,18,22,.72)"){
+  const fs=12/Z*1.15;c.font=`${fs}px Jua, sans-serif`;const w=c.measureText(text).width+fs;
+  c.fillStyle=bg;c.beginPath();c.roundRect(x-w/2,y-fs-fs*0.35,w,fs*1.5,fs*0.4);c.fill();
+  c.fillStyle=col;c.textAlign="center";c.textBaseline="middle";c.fillText(text,x,y-fs*0.38);
+}
+function render(){
+  if(S.battle){renderBattle();return}
+  if(S.mapOpen)renderMap();
+  chunkClock++;
+  ctx.setTransform(DPR,0,0,DPR,0,0);ctx.fillStyle="#121c22";ctx.fillRect(0,0,VW,VH);
+  const vw=VW/Z,vh=VH/Z;
+  let cx,cy;
+  if(S.phase==="game"){cx=S.me.x-vw/2;cy=S.me.y-vh/2-8}
+  else{cx=SPAWN.x-vw/2+Math.sin(S.t*0.15)*120;cy=SPAWN.y-vh/2-90}
+  cx=Math.round(cx*Z)/Z;cy=Math.round(cy*Z)/Z;
+  ctx.setTransform(DPR*Z,0,0,DPR*Z,-cx*DPR*Z,-cy*DPR*Z);
+  ctx.imageSmoothingEnabled=false;
+  // ground chunks in view (paint at most a few new ones per frame)
+  const CW=CH*TS;let paints=0;
+  for(let j=Math.floor(cy/CW);j<=Math.floor((cy+vh)/CW);j++)for(let i=Math.floor(cx/CW);i<=Math.floor((cx+vw)/CW);i++){
+    const c=getChunk(i,j);
+    if(!c.canvas){if(paints>=3&&S.phase==="game"){ctx.fillStyle=PAL[biomeAt(i*CH,j*CH)].g;ctx.fillRect(i*CW,j*CW,CW,CW);continue}paintChunk(c);paints++}
+    ctx.drawImage(c.canvas,i*CW,j*CW,CW+0.5,CW+0.5);
+  }
+  const t=S.t;
+  // fountain spray
+  {const fx=FOUNTAIN.x,fy=FOUNTAIN.y;for(let i=0;i<6;i++){const a=(t*1.4+i/6)%1;ellipse(ctx,fx+Math.sin(i*2.1)*a*14,fy-14+a*a*30-a*18,1.6,1.6,`rgba(190,230,255,${1-a})`)}
+   ellipse(ctx,fx,fy-6,3,8,"rgba(190,230,255,.75)")}
+  const inView=(x,y)=>x>cx-60&&x<cx+vw+60&&y>cy-60&&y<cy+vh+80;
+  const ents=[];
+  if(inView(PROF.x,PROF.y))ents.push({y:PROF.y,draw:()=>{drawPerson(ctx,PROF.x,PROF.y,t,0,false,"#4a6b8a","#c9c9c9",true)},lab:()=>label(ctx,PROF_NAME,PROF.x,PROF.y-34,"#cfe3ff")});
+  const starter=S.profile?.starter;
+  for(const p of PEDESTALS){
+    if(starter===p.kind&&S.phase==="game")continue;
+    const px=p.tx*TS+16,py=p.ty*TS+16;
+    if(inView(px,py))ents.push({y:py+10,draw:()=>{drawMon(ctx,p.kind,px,py,t+p.tx,0,false)}});
+  }
+  for(const g of GYMS){const x=(g.tx+0.5)*TS,y=g.ty*TS+20;if(inView(x,y))ents.push({y:y,draw:()=>drawPerson(ctx,x+96,y,t,0,false,g.color,"#2b2622"),lab:()=>label(ctx,`관장 ${g.leader}`,x+96,y-34,"#ffd24a")})}
+  if(S.phase==="game")for(const w of wildNear(S.me.x,S.me.y,2)){
+    if(!inView(w.x,w.y))continue;
+    const sc=w.boss?1.6:1;
+    ents.push({y:w.y,draw:()=>{if(w.boss){ctx.fillStyle=`rgba(255,80,60,${.25+Math.sin(t*4)*.1})`;ctx.beginPath();ctx.ellipse(w.x,w.y,26,10,0,0,7);ctx.fill()}drawMon(ctx,w.sp,w.x,w.y,t+w.x*0.01,w.dir,w.moving,sc,w.shiny)},
+      lab:()=>label(ctx,`${w.boss?"👑 보스 ":""}${w.shiny?"✨":""}${w.special&&!w.boss?"★":""}Lv${w.lv} ${SPECIES[w.sp].name}`,w.x,w.y-(w.boss?42:26),w.boss?"#ffe08a":"#ffd9d9",w.boss?"rgba(90,20,10,.85)":"rgba(60,14,14,.72)")});
+  }
+  for(const o of S.others.values()){
+    if(!inView(o.x,o.y))continue;
+    if(o.starter)ents.push({y:o.cy,draw:()=>drawMon(ctx,o.starter,o.cx,o.cy,t,o.cdir,o.cmov,1,o.sh)});
+    ents.push({y:o.y,draw:()=>{drawPerson(ctx,o.x,o.y,t,o.dir,o.moving,o.color)},lab:()=>label(ctx,o.nick,o.x,o.y-34)});
+  }
+  if(S.phase==="game"){
+    const sp=activeSp();
+    if(sp)ents.push({y:S.comp.y,draw:()=>drawMon(ctx,sp,S.comp.x,S.comp.y,t,S.comp.dir,S.comp.moving,1,activeMon().shiny)});
+    ents.push({y:S.me.y,draw:()=>drawPerson(ctx,S.me.x,S.me.y,t,S.me.dir,S.me.moving,S.profile.color),lab:()=>label(ctx,S.profile.nickname,S.me.x,S.me.y-34,"#ffd24a")});
+  }
+  ents.sort((a,b)=>a.y-b.y);
+  for(const e of ents)e.draw();
+  for(const e of ents)e.lab&&e.lab();
+
+  if(S.phase==="game"&&!S.dialog&&!S.modalOpen&&!S.mapOpen){
+    if(!S.profile.starter&&!S.talked){const b=Math.sin(t*5)*2;label(ctx,"!",PROF.x,PROF.y-50+b,"#3a2a00","#ffd24a")}
+    const n=nearest();
+    if(n){
+      let x,y,txt;
+      if(n.type==="prof"){x=PROF.x;y=PROF.y-50;txt=S.profile.starter?"E  말 걸기 · 회복":"E  말 걸기"}
+      else if(n.type==="fountain"){x=FOUNTAIN.x;y=FOUNTAIN.y-46;txt="E  몬스터 회복"}
+      else if(n.type==="gym"){x=(n.gym.tx+0.5)*TS;y=n.gym.ty*TS-10;txt=`E  ${n.gym.name} 도전`}
+      else if(n.type==="heal"){x=n.x;y=n.y-50;txt="E  치유센터 (회복)"}
+      else if(n.type==="shop"){x=n.x;y=n.y-50;txt="E  상점"}
+      else{const p=PEDESTALS.find(q=>q.kind===n.kind);x=p.tx*TS+16;y=p.ty*TS-16;txt=`E  ${SPECIES[n.kind].name} 살펴보기`}
+      label(ctx,txt,x,y,"#3a2a00","#ffd24a");
+    }
+    const o=nearestPlayer();
+    if(o)label(ctx,"F  배틀 신청",o.x,o.y-50,"#3a2a00","#ffd24a");
+  }
+  if(S.phase==="game")drawMinimap();
+  if(artKind){drawPortrait($("mon-art"),artKind,"#22343e")}
+}
+
+/* =====================================================================
+   LOOP
+   ===================================================================== */
+let last=performance.now();
+function frame(now){
+  const dt=Math.min(0.05,(now-last)/1000);last=now;
+  update(dt);render();
+  if(S.phase==="auth"&&((S.t*10)|0)%2===0)document.querySelectorAll(".trio canvas").forEach(cv=>drawPortrait(cv,cv.dataset.mon));
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+document.addEventListener("visibilitychange",()=>{if(document.hidden&&S.phase==="game"&&S.profile?.starter&&S.movedSinceSave){S.movedSinceSave=false;save({x:Math.round(S.me.x),y:Math.round(S.me.y)})}});
+boot();
+
+
+</script>
+</body>
+</html>

@@ -1,0 +1,29 @@
+{
+ "name": "몬스터 테이밍 월드",
+ "short_name": "테이밍 월드",
+ "description": "몬스터를 테이밍하는 멀티플레이 오픈월드",
+ "start_url": "./",
+ "scope": "./",
+ "display": "standalone",
+ "background_color": "#121c22",
+ "theme_color": "#121c22",
+ "lang": "ko",
+ "icons": [
+  {
+   "src": "icon-192.png",
+   "sizes": "192x192",
+   "type": "image/png"
+  },
+  {
+   "src": "icon-512.png",
+   "sizes": "512x512",
+   "type": "image/png"
+  },
+  {
+   "src": "icon-512.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "maskable"
+  }
+ ]
+}
