@@ -192,6 +192,29 @@ kbd{font-family:var(--display);background:#fff;border:1px solid var(--line);bord
 .bm-team em.ivg{display:inline-block;margin:2px 0 0}
 .pc-list{display:grid;gap:6px}.pc-row{display:grid;grid-template-columns:40px 1fr auto auto;gap:8px;align-items:center;background:var(--panel-2);border-radius:10px;padding:4px 8px}
 .pc-row canvas{width:40px;height:40px}.pc-row .btn{padding:5px 10px;font-size:13px}
+#support{position:fixed;inset:0;z-index:55;display:flex;justify-content:flex-end;align-items:flex-end;padding:16px;background:rgba(30,22,40,.18);pointer-events:auto}
+#support[hidden]{display:none}
+.sp-card{width:min(400px,100%);height:min(620px,calc(100vh - 32px));display:flex;flex-direction:column;border-radius:22px;overflow:hidden;background:#fffdf8;box-shadow:0 18px 50px rgba(50,30,80,.28)}
+.sp-card header{display:flex;align-items:center;gap:10px;padding:14px 14px 12px;background:linear-gradient(135deg,#7a4fc4,#4f7fd8);color:#fff}
+.sp-card header b{font-family:var(--display);font-size:19px;display:block}.sp-card header small{opacity:.85;font-size:12px}
+.sp-x{margin-left:auto;border:0;background:rgba(255,255,255,.18);color:#fff;width:32px;height:32px;border-radius:50%;font-size:15px}
+.sp-avs{display:flex}.sp-avs .sp-av{margin-left:-8px;border:2px solid #fff}.sp-avs .sp-av:first-child{margin-left:0}
+.sp-av{display:grid;place-items:center;width:34px;height:34px;border-radius:50%;font-size:17px;flex:none}.sp-av.sm{width:28px;height:28px;font-size:14px;align-self:flex-end}
+.av-lumen{background:#ffe9b0}.av-nova{background:#c9ecd9}.av-echo{background:#f6d0ec}
+.sp-log{flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:10px;background:linear-gradient(#f7f3ff,#fffdf8)}
+.sp-row{display:flex;gap:6px;align-items:flex-end}.sp-row.me{justify-content:flex-end}
+.sp-bub{max-width:78%;padding:9px 12px;border-radius:16px;font-size:14px;line-height:1.45;white-space:pre-line;background:#fff;box-shadow:0 1px 3px rgba(60,40,90,.12);border-bottom-left-radius:4px}
+.sp-bub b{display:block;font-size:11px;color:#7a4fc4;margin-bottom:2px}
+.sp-row.me .sp-bub{background:#7a4fc4;color:#fff;border-bottom-left-radius:16px;border-bottom-right-radius:4px}
+.sp-bub.ok{border-left:3px solid #2fae5a}.sp-bub.no{border-left:3px solid #e0a400}
+.sp-bub.typing{display:flex;gap:4px;padding:12px 14px}.sp-bub.typing i{width:7px;height:7px;border-radius:50%;background:#b9a6dd;animation:spdot 1s infinite}
+.sp-bub.typing i:nth-child(2){animation-delay:.15s}.sp-bub.typing i:nth-child(3){animation-delay:.3s}
+@keyframes spdot{0%,60%,100%{transform:translateY(0);opacity:.5}30%{transform:translateY(-4px);opacity:1}}
+.sp-chips{display:flex;gap:6px;flex-wrap:wrap;padding:8px 12px 0;background:#fffdf8}.sp-chips:empty{display:none}
+.sp-chips button{border:1.5px solid #cdb9ef;background:#fff;color:#5a3a9c;border-radius:999px;padding:5px 11px;font-size:13px;font-family:var(--body)}
+.sp-form{display:flex;gap:8px;padding:10px 12px 12px;background:#fffdf8}.sp-form input{flex:1;min-width:0;font:inherit;font-size:14px;padding:9px 12px;border-radius:12px;border:2px solid var(--line);background:#fff}
+.sp-form .btn{padding:8px 14px;font-size:14px}
+@media (max-width:640px){#support{padding:0}.sp-card{width:100%;height:78vh;border-radius:22px 22px 0 0}}
 @media (max-width:640px){#ev-hud{bottom:auto;top:calc(160px + env(safe-area-inset-top,0px));font-size:12px}}
 /* world AI panel */
 #world-ai{position:fixed;inset:0;z-index:23;display:grid;place-items:center;padding:16px;background:rgba(40,34,28,.45)}
@@ -4556,7 +4579,7 @@ function tag(c,text,x,y,col){
    LIVE UPDATE — when a new version is published at the game's address,
    swap to it in about a second, keeping login, position and connection.
    ===================================================================== */
-const GAME_VERSION="0.15.0";
+const GAME_VERSION="0.16.0";
 const UPDATE_CHECK_MS=15000;
 let pendingUpdate=null;
 function verNewer(a,b){const p=s=>String(s).split(".").map(n=>parseInt(n)||0);const x=p(a),y=p(b);for(let i=0;i<Math.max(x.length,y.length);i++){if((x[i]||0)!==(y[i]||0))return(x[i]||0)>(y[i]||0)}return false}
@@ -5460,6 +5483,7 @@ setInterval(()=>{
 },9000);
 /* replies — every client that receives the same message computes the same replies */
 function botsHear(m){
+  if(/관리자|루멘|노바|에코|고객센터/.test(m.text||""))return; // talking to the admins, not to us
   const text=m.text,now=m.at||Date.now(),seed=[...text].reduce((a,c)=>a*31+c.charCodeAt(0)|0,7)^Math.floor(now/60000);
   const near=botsNear(m.x,m.y,16,now).filter(v=>!v.inside&&!v.leaving).map(v=>({i:v.i,d:Math.hypot(v.x-m.x,v.y-m.y)})).sort((a,b)=>a.d-b.d);
   const named=[];for(let i=0;i<botTotal(now);i++)if(text.includes(botPersona(i).name)&&botOnline(i,now))named.push(i);
@@ -5469,7 +5493,7 @@ function botsHear(m){
   let who=named.slice(0,1);
   if(!who.length){if(near[0].d<4.5*TS)who=[near[0].i];else who=near.slice().sort((a,b)=>hash(seed,a.i,4431)-hash(seed,b.i,4431)).slice(0,1).map(o=>o.i);
     const extra=near.find(o=>!who.includes(o.i)&&o.d<9*TS);if(extra&&hash(seed,1,4430)<0.35)who.push(extra.i)}
-  const mine=S.profile&&m.pid===S.profile.pid,toWorld=(/이벤트|해줘|해 줘|세계|자아|추가|늘려|갇혔|갇혀|막혔|소환/.test(text)&&!/\?|뭐|어디|누구/.test(text))||/관리자|그래픽|그림|깨졌|깨져|깨짐|아직 깨|원래대로|되돌려/.test(text);
+  const mine=S.profile&&m.pid===S.profile.pid,toWorld=(/이벤트|해줘|해 줘|세계|자아|추가|늘려|갇혔|갇혀|막혔|소환/.test(text)&&!/\?|뭐|어디|누구/.test(text))||/관리자|루멘|노바|에코|고객센터|그래픽|그림|깨졌|깨져|깨짐|아직 깨|원래대로|되돌려/.test(text);
   who.forEach((i,k)=>setTimeout(()=>{
     let r=botReply(i,m,hash(seed,i,4432),k===0&&!toWorld);
     const norm=s=>s.replace(/\s*(ㅋㅋ|ㅎㅎ|😆|✨|🔥)+$/,"").trim();
@@ -6768,7 +6792,7 @@ function openIvPop(list,heading){
   pop.appendChild(card);pop.hidden=false;
 }
 function closeIvPop(){const p=$("ivpop");if(p)p.hidden=true}
-addEventListener("keydown",e=>{const p=$("ivpop");if(p&&!p.hidden&&(e.key==="Escape"||e.key.toLowerCase()==="i")){e.stopPropagation();e.preventDefault();closeIvPop()}},true);
+addEventListener("keydown",e=>{const p=$("ivpop");if(p&&!p.hidden&&(e.key==="Escape"||e.key.toLowerCase()==="i")){e.stopImmediatePropagation();e.preventDefault();closeIvPop()}},true);
 addEventListener("keydown",e=>{if(e.key.toLowerCase()!=="i"||e.repeat||S.phase!=="game"||S.battle||S.modalOpen||S.menuOpen||S.dialog||document.activeElement&&/INPUT|TEXTAREA/.test(document.activeElement.tagName))return;const p=$("ivpop");if(p&&!p.hidden)return;
   if(S.profile&&S.profile.party.length)openIvPop(S.profile.party.map((m,k)=>[m,`${k+1}번`]),"📊 내 팀 개체값 (I)")});
 /* battle: the foe and my monster side by side */
@@ -6801,6 +6825,256 @@ function openBoxPC(){
   };
   draw();$("modal").hidden=false;
 }
+
+/* =====================================================================
+   🛎️ 관리자 고객센터 — 루멘·노바·에코의 대화 두뇌 (토큰 없이 게임 안에서 동작)
+   ---------------------------------------------------------------------
+   어떻게 알아듣나 (작업 지향 대화 시스템의 고전적인 구조를 따름):
+     1. 정규화 — 문장부호·이모티콘 정리, 자주 틀리는 줄임말 펼치기
+     2. 특징 — 글자 2·3글자 조각 + 자모(ㄱㅏ…) 3조각 + 단어
+               → 오타("어려워여", "난이도가넘어렵") 에도 강함
+     3. 의도 분류 — 예시 문장 수백 개와 TF-IDF 코사인 유사도 (k-최근접)
+     4. 개체 추출 — 관리자 이름, 몬스터 이름, 주제(교환·길드…), 숫자
+     5. 대화 상태 — 확인 대기("적용할까요?" → "응"), 빈칸 채우기
+                    ("어떤 몬스터요?" → "버블리"), 이어지는 질문("왜?", "그럼?")
+     6. 확신이 낮으면 아는 척하지 않고 되물어요 (후보를 버튼으로 제시)
+     7. 답은 지금 게임 상태로 계산해요 — 내 레벨, 팀, 위치, 다음 체육관,
+        이벤트, 퀘스트를 실제로 보고 말해요
+     8. 행동은 미리 검증된 것만 — 실행 후 결과를 다시 확인하고 알려 줘요
+   ===================================================================== */
+/* ---------- 1~2. text → features ---------- */
+const SUP_ABBR=[[/ㅈㅅ/g,"죄송"],[/ㄱㅅ|ㄳ/g,"감사"],[/ㅇㅇ/g,"응"],[/ㄴㄴ/g,"아니"],[/넘/g,"너무"],[/겜/g,"게임"],[/렙/g,"레벨"],[/몹/g,"몬스터"],[/ㅠ+|ㅜ+|ㅋ+|ㅎ+/g," "],[/어케|어떡해|어떻게해/g,"어떻게"],[/뭐임|머임|머야|뭐야/g,"뭐야"],[/여\b/g,"요"]];
+function supNorm(t){t=String(t||"").toLowerCase().replace(/[!~.,·…"'`]/g," ");for(const [a,b] of SUP_ABBR)t=t.replace(a,b);return t.replace(/\s+/g," ").trim()}
+const CHO="ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ",JUNG="ㅏㅐㅑㅒㅓㅔㅕㅖㅗㅘㅙㅚㅛㅜㅝㅞㅟㅠㅡㅢㅣ",JONG=" ㄱㄲㄳㄴㄵㄶㄷㄹㄺㄻㄼㄽㄾㄿㅀㅁㅂㅄㅅㅆㅇㅈㅊㅋㅌㅍㅎ";
+function jamo(s){let o="";for(const ch of s){const c=ch.charCodeAt(0)-0xAC00;if(c>=0&&c<11172){o+=CHO[Math.floor(c/588)]+JUNG[Math.floor(c%588/28)]+(c%28?JONG[c%28]:"")}else o+=ch}return o}
+function supFeats(t){
+  const n=supNorm(t),f=new Map(),add=(k,w)=>f.set(k,(f.get(k)||0)+w);
+  const s="^"+n.replace(/ /g,"")+"$";for(let i=0;i<s.length-1;i++){add("b:"+s.slice(i,i+2),1);if(i<s.length-2)add("t:"+s.slice(i,i+3),1.3)}
+  const j=jamo(n.replace(/ /g,""));for(let i=0;i<j.length-2;i++)add("j:"+j.slice(i,i+3),0.35);
+  for(const w of n.split(" "))if(w.length>1)add("w:"+w,1.2);
+  return f}
+const josa=(w,a,b)=>{const c=String(w).charCodeAt(String(w).length-1)-0xAC00;return w+(c>=0&&c<11172&&c%28?a:b)};
+const pickV=(arr)=>arr[Math.floor(Math.random()*arr.length)];
+/* ---------- 3. intents: examples + who answers + what to do ---------- */
+const SUP_INTENTS=[];
+function intent(id,owner,label,examples,handle){SUP_INTENTS.push({id,owner,label,examples,handle})}
+/* strong cue words: a sure keyword lifts its intent (like a human hearing "렉" and knowing at once) */
+const SUP_KW={lag:/렉|버벅|끊겨|끊김|프레임|느려|뜨거|드랍/,legend:/전설|이그니드라|화산/,quest:/퀘스트|할 ?거|할게 ?없|심심/,event:/이벤트|축제/,heal:/회복|힐|기절|체력|피 ?채|피가|쓰러졌|포션/,art:/그래픽|그림|깨져|깨졌|깨짐|잘렸/,hard:/어려|어렵|너무 ?세|쎄|못 ?이기|이길 ?수|계속 ?져|지기만|맨날 ?(짐|져)|쉽게|낮춰/,easy:/너무 ?쉬|쉬워서|쉬운데|시시|어렵게|난이도 ?올/,gym:/체육관|배지|관장/,iv:/개체값|\biv\b/,money:/골드|돈/,stuck:/갇혔|끼었|끼였|못 ?나가/,bug:/버그|오류|신고|제보/,team:/팀 ?분석|내 ?팀|우리 ?팀|팀 ?구성|약점|키우는|키워야|조합/,level:/렙업|레벨업|레벨 ?올|경험치|사냥터|사냥하/,town:/길을? ?잃|집에|마을로/,guideoff:/안내 ?꺼|화살표 ?꺼|안내 ?그만|화살표 ?없/,normal:/보통|원래 ?난이도|난이도 ?원래/};
+/* ---------- 4. entities ---------- */
+const ADMIN_NAMES={lumen:/루멘|lumen/,nova:/노바|nova/,echo:/에코|echo/};
+const TOPICS={trade:/교환|트레이드|거래/,friend:/친구/,guild:/길드/,party:/파티|같이 다니|동행/,save:/저장|세이브/,tame:/테이밍|잡는 ?법|잡아요|포획|볼 던/,chat:/채팅|대화하는/,map:/지도|맵 보/,dex:/도감/,server:/서버|멀티|같이 하는|접속/,battle:/배틀|싸우는|전투/,evolve:/진화/,shop:/상점|가게|살 수/,heal:/회복|치유/,iv:/개체값|개체|iv/,fullscreen:/전체 ?화면/,bag:/가방|아이템/};
+function entities(t){const n=supNorm(t),e={};
+  for(const [k,re] of Object.entries(ADMIN_NAMES))if(re.test(n))e.admin=k;
+  const mon=typeof nameInText==="function"&&nameInText(t);if(mon)e.mon=mon;
+  for(const [k,re] of Object.entries(TOPICS))if(re.test(n)){e.topic=k;break}
+  const num=n.match(/\d+/);if(num)e.num=+num[0];return e}
+/* ---------- model ---------- */
+let SUP_IDF=null,SUP_EX=[];
+function supTrain(){
+  const df=new Map();SUP_EX=[];
+  for(const it of SUP_INTENTS)for(const ex of it.examples){const f=supFeats(ex);SUP_EX.push({it,f});for(const k of f.keys())df.set(k,(df.get(k)||0)+1)}
+  const N=SUP_EX.length;SUP_IDF=new Map();for(const [k,d] of df)SUP_IDF.set(k,Math.log(1+N/d));
+  for(const e of SUP_EX)e.v=vec(e.f)}
+function vec(f){const v=new Map();let n=0;for(const [k,w] of f){const x=w*(SUP_IDF.get(k)||Math.log(1+SUP_EX.length));v.set(k,x);n+=x*x}v.n=Math.sqrt(n)||1;return v}
+function cos(a,b){let s=0;const [x,y]=a.size<b.size?[a,b]:[b,a];for(const [k,w] of x){const z=y.get(k);if(z)s+=w*z}return s/(a.n*b.n)}
+function classify(t){
+  if(!SUP_IDF)supTrain();const v=vec(supFeats(t)),best=new Map();
+  for(const e of SUP_EX){const s=cos(v,e.v);if(s>(best.get(e.it)||0))best.set(e.it,s)}
+  const n=supNorm(t);for(const it of SUP_INTENTS){const kw=SUP_KW[it.id];if(kw&&kw.test(n))best.set(it,(best.get(it)||0)+0.35)}
+  if(SUP_KW.normal.test(n)&&/난이도/.test(n)){const it=SUP_INTENTS.find(x=>x.id==="normal");best.set(it,(best.get(it)||0)+0.3)}
+  return[...best.entries()].sort((a,b)=>b[1]-a[1]).slice(0,4).map(([it,s])=>({it,s}))}
+/* ---------- 5. dialogue state ---------- */
+const SUP={open:false,msgs:[],pending:null,last:null,lastAt:0,busy:0,feed:"panel"};
+const YES=/^(응|네|넹|예|ㅇ|그래|좋아|좋아요|해줘|해 줘|해주세요|부탁|오케이|ok|ㅇㅋ|켜|켜줘|적용|웅|넵|당연)/,NO=/^(아니|아뇨|ㄴ|싫어|됐어|괜찮아요|취소|안 ?해|그만|노|no)/;
+function supMem(){const p=S.profile;if(!p.sup||typeof p.sup!=="object")p.sup={talks:0,issues:[],losses:0};return p.sup}
+/* ---------- verified actions (each one checks its own result) ---------- */
+const SACT={
+  heal(){if(S.battle)return{ok:false,msg:"배틀 중에는 회복해 드릴 수 없어요. 배틀이 끝나면 다시 말해 주세요."};
+    const M=supMem(),left=(M.healAt||0)+600000-Date.now();if(left>0)return{ok:false,msg:`응급 치료는 10분에 한 번이에요. ${Math.ceil(left/60000)}분 뒤에 다시 가능해요. 급하면 마을 분수나 치유센터를 이용해 주세요!`};
+    healAll();M.healAt=Date.now();saveProfile();const ok=S.profile.party.every(m=>m.hp===monStats(m).hp);return{ok,msg:ok?"팀 전원 체력을 가득 채웠어요. ✅ (확인 완료)":"회복을 시도했는데 다 채워지지 않았어요. 다시 해 볼게요."}},
+  town(){respawnTown();const ok=Math.hypot(S.me.x-SPAWN.x,S.me.y-SPAWN.y)<TS*2;return{ok,msg:ok?"마을 광장으로 모셨어요. ✅":"이동에 실패했어요. 가방의 귀환의 날개를 써 보세요."}},
+  guide(x,y,label){S.waypoint={x,y,label,at:Date.now()};const ok=!!S.waypoint;return{ok,msg:ok?`화면에 「${label}」 쪽을 가리키는 화살표를 켰어요. 도착하면 저절로 꺼져요. ("안내 꺼"라고 하면 바로 꺼요)`:"안내를 켜지 못했어요."}},
+  unguide(){S.waypoint=null;return{ok:true,msg:"길 안내를 껐어요."}},
+  diff(level){S.profile.diff=level;saveProfile();const ok=S.profile.diff===level;
+    const d={easy:"쉬움 — 야생 몬스터 레벨 20% 낮게, 경험치 1.25배",normal:"보통 — 원래대로",hard:"어려움 — 야생 몬스터 레벨 15% 높게, 골드 1.3배"}[level];return{ok,msg:ok?`난이도를 「${d}」로 바꿨어요. ✅ 언제든 "난이도 보통으로"라고 하면 돌아가요.`:"난이도를 바꾸지 못했어요."}},
+  perf(){const before=DPR_CAP;DPR_CAP=1;BOT_DRAW_CAP=Math.min(BOT_DRAW_CAP,8);resize();return{ok:DPR_CAP===1,msg:`가벼운 모드로 바꿨어요 (해상도 ${before}→1, 보이는 트레이너 최대 ${BOT_DRAW_CAP}명). ✅`}},
+};
+/* difficulty really changes battles (only for you) */
+{const _sw=startWildBattle;startWildBattle=function(w){_sw(w);const b=S.battle,d=S.profile&&S.profile.diff;if(!b||!d||d==="normal"||b.legend)return;
+  for(const f of b.foes){const lv=d==="easy"?Math.max(2,Math.round(f.lv*0.8)):Math.min(MAX_LV,Math.round(f.lv*1.15));if(lv!==f.lv){f.lv=lv;f.moves=movesKnownAt(f.sp,lv);f.hp=monStats(f).hp}}b.diff=d}}
+{const _gx=gainXp;gainXp=function(m,amount,say){if(S.profile&&S.profile.diff==="easy"&&S.battle)amount=Math.round(amount*1.25);return _gx(m,amount,say)}}
+{const _ag=addGold;addGold=function(n){if(n>0&&S.profile&&S.profile.diff==="hard"&&S.battle)n=Math.round(n*1.3);return _ag(n)}}
+{const _eb=endBattle;endBattle=function(){if(S.battle&&S.profile&&!S.profile.party.some(m=>m.hp>0)){const M=supMem();M.losses=(M.losses||0)+1;M.lastLoss=Date.now()}return _eb()}}
+/* ---------- live knowledge helpers ---------- */
+const myLv=()=>Math.max(1,...S.profile.party.map(m=>m.lv));
+const here=()=>({tx:Math.floor(S.me.x/TS),ty:Math.floor(S.me.y/TS)});
+const where=(x,y)=>{const dx=x-S.me.x,dy=y-S.me.y,d=Math.round(Math.hypot(dx,dy)/TS);return d<3?"바로 근처":`${dirWord(dx,dy)}쪽 ${d}칸`};
+const nextGym=()=>GYMS.find(g=>!S.profile.badges.includes(g.id));
+const strongTypes=t=>Object.keys(TYPES).filter(a=>effOf(a,t)>1);
+function nearestBiome(b){const {tx,ty}=here();for(let r=0;r<=320;r+=6)for(let k=0;k<Math.max(1,r*2);k+=1){const a=k/(Math.max(1,r*2))*Math.PI*2,x=Math.round(tx+Math.cos(a)*r),y=Math.round(ty+Math.sin(a)*r);if(biomeAt(x,y)===b&&walkTile(x,y))return[x,y]}return null}
+function trainingSpot(){const L=myLv(),{tx,ty}=here();let best=null,bd=1e9;
+  for(let r=4;r<=260;r+=8)for(let k=0;k<16;k++){const a=k/16*Math.PI*2,x=Math.round(tx+Math.cos(a)*r),y=Math.round(ty+Math.sin(a)*r),lv=levelAt(x,y);
+    if(lv>=L&&lv<=L+3&&walkTile(x,y)&&!inTown(x,y)){const d=Math.hypot(x-tx,y-ty);if(d<bd){bd=d;best={x,y,lv}}}}return best}
+const ADMIN_INFO={
+  lumen:{intro:"저는 루멘, 시스템 담당이에요. 게임이 멈추거나 오류가 나면 원인을 찾아서 그 부분만 정리하고, 렉이 심하면 설정을 가볍게 바꾸고, 저장과 서버 연결을 지켜요. 고객센터 접수도 제가 받아요.",can:["렉·버벅임 → 가벼운 모드","오류 신고 접수·기록","저장/서버 연결 문제 확인","난이도 조절 (쉬움·보통·어려움)"]},
+  nova:{intro:"저는 노바, 지도 담당이에요. 갇히는 지형을 찾아서 가상으로 먼저 치워 보고, 길이 확실히 열릴 때만 실제로 고쳐요. 길 안내랑 다음 목적지 찾기도 제가 해요.",can:["다음 체육관·사냥터·서식지 길 안내 (화살표)","갇혔을 때 마을로 옮기기","막힌 지형 고치기","지금 위치·지역 설명"]},
+  echo:{intro:"저는 에코, 그래픽과 AI 담당이에요. 몬스터 그림을 보이지 않는 캔버스에 그려서 검사하고, 깨진 그림은 그리는 방식을 바꿔 고쳐요. 몬스터·팀·배틀 상담도 해요.",can:["깨진 몬스터 그림 고치기","팀 분석·체육관 상성 추천","몬스터 서식지·진화 정보","개체값 설명"]}};
+/* ---------- intents ---------- */
+intent("greet","lumen","인사",["안녕","안녕하세요","하이","관리자님","관리자 있어요","여보세요","저기요","도와주세요"],()=>{const M=supMem(),back=M.talks>1;
+  return{text:back?`${S.profile.nickname}님 다시 오셨네요! 무엇을 도와드릴까요?`:`안녕하세요 ${S.profile.nickname}님, 몬스터 테이밍 월드 고객센터예요. 시스템 루멘, 지도 노바, 그래픽 에코가 같이 응대해요. 무엇을 도와드릴까요?`,chips:["뭘 할 수 있어요?","난이도가 너무 어려워요","다음 체육관 어디예요?","레벨 빨리 올리는 법"]}});
+intent("who_admin","lumen","관리자 소개",["에코는 하시는 일이 뭐에요","루멘은 누구야","노바 뭐하는 사람이야","관리자들 소개해줘","관리자는 몇 명이야","에코가 뭐야","너는 누구야","너 뭐하는 애야","관리자는 무슨 일 해요"],(t,e)=>{
+  if(!e.admin){return{text:`관리자는 셋이에요.\n🕯️ 루멘 — 시스템(오류·렉·저장·연결·난이도)\n🧭 노바 — 지도(길 안내·갇힘·지형 수리)\n🎨 에코 — 그래픽·AI(그림 수리·팀 상담·몬스터 정보)\n평소엔 맵에 안 보이게 주변을 순찰해요. 궁금한 관리자 이름을 눌러 보세요.`,chips:["에코는 무슨 일 해요?","노바는 무슨 일 해요?","루멘은 무슨 일 해요?"]}}
+  const I=ADMIN_INFO[e.admin],a=ADM[e.admin],cases=INCIDENTS.filter(c=>c.admin===e.admin),fixed=cases.filter(c=>/해결/.test(c.status)).length;
+  return{who:e.admin,text:`${I.intro}\n할 수 있는 일: ${I.can.join(" · ")}\n지금은 「${a.task}」 중이고, 이번 접속에서 ${cases.length}건 처리했어요 (해결 ${fixed}건).`}});
+intent("can_do","lumen","도와줄 수 있는 일",["뭘 할 수 있어요","뭐 해줄 수 있어","도움 받을 수 있는 거","기능 알려줘","할 수 있는 거 뭐야","도움말","명령어 알려줘"],()=>({text:"이런 걸 바로 해 드릴 수 있어요 (전부 실제로 실행되고 결과를 확인해요):\n· 난이도 조절, 응급 회복(10분에 1번), 마을로 이동\n· 다음 체육관·사냥터·몬스터 서식지 길 안내 화살표\n· 팀 분석과 체육관 상성 추천, 진화·개체값 설명\n· 깨진 그림 고치기, 렉 줄이기, 버그 접수\n· 지금 이벤트·퀘스트·전설 상황 알려 주기",chips:["팀 분석해줘","사냥터 안내해줘","지금 이벤트 뭐야?","버그 신고할래요"]}));
+intent("hard","lumen","난이도가 어려워요",["난이도가 너무 어려워요","너무 어려워","계속 져요","몬스터가 너무 세요","자꾸 기절해","이길 수가 없어","난이도 낮춰줘","쉬운 모드","게임이 너무 어렵다","관장이 너무 세"],()=>{
+  const M=supMem(),L=myLv(),{tx,ty}=here(),lvHere=levelAt(tx,ty),g=nextGym(),cur=S.profile.diff||"normal";
+  const why=[];if(lvHere>L+3)why.push(`지금 있는 곳은 권장 Lv${lvHere}인데 팀 최고 레벨이 Lv${L}이에요`);if(g&&g.lv>L+3)why.push(`다음 ${g.name}은 Lv${g.lv}라 ${g.lv-L}레벨쯤 더 필요해요`);
+  if(M.losses)why.push(`최근 ${M.losses}번 쓰러졌어요`);const fainted=S.profile.party.filter(m=>m.hp<=0).length;if(fainted)why.push(`지금 ${fainted}마리가 기절 상태예요`);
+  if(cur==="easy")return{text:`이미 쉬움 모드예요. ${why.length?"원인을 보니 "+why.join(", ")+".":""} 레벨이 맞는 사냥터로 안내해 드릴까요?`,confirm:{label:"사냥터 안내",run:()=>guideTraining()},chips:["응 안내해줘","팀 분석해줘"]};
+  return{text:`많이 힘드셨죠. 제가 상황을 확인해 봤어요.\n${why.length?"· "+why.join("\n· "):"· 팀 상태는 괜찮아 보이는데 상대가 버거운 것 같아요"}\n쉬움 모드로 바꿔 드릴까요? (야생 몬스터 레벨 20% 낮게, 경험치 1.25배 — 나만 적용, 언제든 되돌리기 가능)`,confirm:{label:"쉬움 모드",run:()=>SACT.diff("easy")},chips:["응 바꿔줘","아니 사냥터 알려줘","회복해줘"]}});
+intent("easy","lumen","너무 쉬워요",["너무 쉬워요","시시해","난이도 올려줘","어려움 모드","더 어렵게","너무 쉽다","도전적인 거"],()=>({text:`어려움 모드로 바꿔 드릴까요? 야생 몬스터 레벨이 15% 높아지고 배틀 골드가 1.3배예요. 더 센 상대가 필요하면 끝없는 시련 ${WQ().trial.n}단계와 30분마다 나오는 보스도 있어요.`,confirm:{label:"어려움 모드",run:()=>SACT.diff("hard")},chips:["응 바꿔줘","아니 괜찮아"]}));
+intent("normal","lumen","난이도 보통",["난이도 보통으로","원래 난이도로","난이도 되돌려","보통 모드"],()=>({action:()=>SACT.diff("normal")}));
+intent("gym","nova","다음 체육관",["다음 체육관 어디예요","체육관 어디야","체육관 위치","관장 어디 있어","배지 어디서 받아","다음 목표 뭐야","어디로 가야 돼"],()=>{
+  const g=nextGym();if(!g)return{text:"체육관 배지 6개를 모두 모으셨어요! 🎉 이제 끝없는 시련, 보스, 북동쪽 화산의 전설에 도전해 보세요."};
+  const gx=(g.tx+0.5)*TS,gy=g.ty*TS+40,L=myLv(),st=strongTypes(g.type).map(t=>TYPES[t].name).join("·"),mine=S.profile.party.filter(m=>effOf(SPECIES[m.sp].type,g.type)>1).map(m=>SPECIES[m.sp].name);
+  return{text:`다음은 ${g.name} (관장 ${g.leader}, ${TYPES[g.type].name} 타입, 권장 Lv${g.lv})이에요. 여기서 ${where(gx,gy)}에 있어요.\n${L>=g.lv?`팀 최고 Lv${L}이라 충분해요!`:`팀 최고 Lv${L}이라 ${g.lv-L}레벨쯤 더 키우면 편해요.`} ${TYPES[g.type].name} 타입엔 ${st} 타입이 강해요${mine.length?` — 팀의 ${josa(mine.join(", "),"이","가")} 딱이에요`:" — 지금 팀엔 상성이 좋은 몬스터가 없어요"}.\n길 안내 켜 드릴까요?`,confirm:{label:"체육관 안내",run:()=>SACT.guide(gx,gy,g.name)},chips:["응 안내해줘","팀 분석해줘"]}});
+intent("level","nova","레벨 올리는 법",["레벨 빨리 올리는 법","레벨업 어떻게 해","경험치 어디서 얻어","사냥터 추천","어디서 사냥해","사냥터 안내해줘","렙업 좋은 곳"],()=>{
+  const sp=trainingSpot(),L=myLv(),xp=WFX("xp");
+  const tips=[`팀 최고 Lv${L}에겐 Lv${L}~${L+3} 지역이 제일 효율적이에요 (마을에서 멀어질수록 레벨이 올라가요)`];if(xp>1)tips.push(`지금 경험치 ${xp}배 이벤트 중이라 기회예요!`);
+  tips.push("AI 트레이너와 파티를 맺으면 사냥 경험치 +20%","상점의 경험치 사탕은 바로 1레벨","오늘의 퀘스트 보상도 챙기세요");
+  return{text:`${tips.join("\n· ")}\n${sp?`가장 가까운 추천 사냥터는 ${where((sp.x+0.5)*TS,(sp.y+0.5)*TS)} (Lv${sp.lv} 지역)이에요. 안내해 드릴까요?`:""}`,confirm:sp?{label:"사냥터 안내",run:()=>SACT.guide((sp.x+0.5)*TS,(sp.y+0.5)*TS,`Lv${sp.lv} 사냥터`)}:null,chips:sp?["응 안내해줘","아니 괜찮아"]:[]}});
+intent("catch","echo","몬스터 서식지",["어디서 잡아요","서식지 알려줘","이 몬스터 어디 나와","어디 가면 나와","잡고 싶은데 어디 있어","어디서 찾아"],(t,e)=>{
+  if(!e.mon)return{text:"어떤 몬스터를 찾으세요? 이름을 말해 주세요.",slot:"mon"};return monWhere(e.mon)});
+function monWhere(id){const s=SPECIES[id],base=(s.line||id).replace(/_\d$/,""),hab=habitatOf(base),stg=stageOf(id);
+  let b=null;for(const [k,pool] of Object.entries(BIOME_POOLS))if(pool.some(x=>x[0]===base||x[0]===id)){b=k;break}
+  const spot=b&&nearestBiome(b),evo=stg>1?` 진화형이라 ${SPECIES[base].name}를 Lv${stg===2?SPECIES[base].evoLv:SPECIES[SPECIES[base].evo].evoLv}까지 키우거나, 레벨 높은 지역에서 이미 진화한 개체를 만날 수 있어요.`:"";
+  return{who:"echo",text:`${josa(s.name,"은","는")} ${TYPES[s.type].name} 타입이에요. 서식지: ${hab}.${evo}${spot?`\n가장 가까운 ${BIOME_NAME[b]}는 ${where((spot[0]+0.5)*TS,(spot[1]+0.5)*TS)}에 있어요. 안내해 드릴까요?`:""}`,confirm:spot?{label:"서식지 안내",run:()=>SACT.guide((spot[0]+0.5)*TS,(spot[1]+0.5)*TS,`${BIOME_NAME[b]} (${s.name})`)}:null,chips:spot?["응 안내해줘"]:[]}}
+intent("team","echo","팀 분석",["팀 분석해줘","내 팀 어때","누구 키워야 돼","팀 추천","약점이 뭐야","내 몬스터 평가","팀 조합 어때"],()=>{
+  const P=S.profile.party,g=nextGym();if(!P.length)return{text:"아직 팀이 없어요. 박사님께 첫 파트너를 받아 오세요!"};
+  const best=P.slice().sort((a,b)=>ivTotal(b)-ivTotal(a))[0],low=P.slice().sort((a,b)=>a.lv-b.lv)[0],types=[...new Set(P.map(m=>SPECIES[m.sp].type))];
+  const lines=[`팀 ${P.length}마리, 타입 ${types.length}종류 (${types.map(t=>TYPES[t].name).join("·")})`,`개체값이 제일 좋은 건 ${SPECIES[best.sp].name} (등급 ${ivGrade(best)}) — 주력으로 키우기 좋아요`];
+  if(P.length>1&&myLv()-low.lv>8)lines.push(`${SPECIES[low.sp].name}(Lv${low.lv})가 많이 뒤처져 있어요 — 선두에 세우고 약한 상대로 키우면 금방 따라와요`);
+  if(g){const good=P.filter(m=>effOf(SPECIES[m.sp].type,g.type)>1),bad=P.filter(m=>effOf(g.type,SPECIES[m.sp].type)>1);
+    lines.push(`다음 ${g.name}(${TYPES[g.type].name}) 기준: ${good.length?`유리 — ${good.map(m=>SPECIES[m.sp].name).join(", ")}`:`유리한 몬스터 없음 → ${strongTypes(g.type).map(t=>TYPES[t].name).join("·")} 타입을 하나 잡아 오면 좋아요`}${bad.length?` / 불리 — ${bad.map(m=>SPECIES[m.sp].name).join(", ")}`:""}`)}
+  if(P.length<4)lines.push("팀이 4마리 이상이면 교체로 버티기 쉬워요");
+  return{who:"echo",text:"제가 팀을 살펴봤어요.\n· "+lines.join("\n· ")}});
+intent("heal","lumen","회복",["회복해줘","힐해줘","몬스터 다 기절했어","체력 채워줘","치료해줘","포션 없어"],()=>({action:()=>SACT.heal()}));
+intent("town","nova","마을로",["마을로 보내줘","길 잃었어","집에 가고 싶어","마을이 어디야","마을로 돌아가고 싶어","텔레포트 해줘"],()=>({text:"마을 광장으로 바로 옮겨 드릴까요?",confirm:{label:"마을로 이동",run:()=>SACT.town()},chips:["응","아니"]}));
+intent("stuck","nova","갇혔어요",["갇혔어요","끼었어","못 나가","움직일 수가 없어","벽에 끼었어","나갈 수가 없어요"],()=>({action:()=>{try{novaCheckPocket()}catch(e){}return SACT.town()}}));
+intent("lag","lumen","렉이 심해요",["렉 걸려요","버벅여요","렉이 너무 심해","게임이 버벅거려요","렉 때문에 못 하겠어","화면이 끊겨","너무 느려","프레임 떨어져","끊겨요","폰이 뜨거워"],()=>({text:`지금 화면이 초당 ${Math.round(WORLD.fps)}번 그려지고 있어요${WORLD.fps<30?" — 확실히 낮아요":""}. 가벼운 모드로 바꿔 드릴까요? (해상도를 낮추고, 한 번에 보이는 트레이너 수를 줄여요)`,confirm:{label:"가벼운 모드",run:()=>SACT.perf()},chips:["응 바꿔줘","아니"]}));
+intent("art","echo","그림이 깨져요",["그림이 깨졌어요","그래픽 이상해","몬스터가 이상하게 보여","사진 깨짐","그림 잘렸어","색이 이상해"],(t)=>({action:()=>{personReportsArt({pid:S.profile.pid,nick:S.profile.nickname},t);return{ok:true,msg:"에코가 바로 검사를 시작했어요. 결과는 채팅에 올라와요."}}}));
+intent("bug","lumen","버그 신고",["버그 신고할래요","오류 났어요","버그 있어요","이상한 게 있어","신고하고 싶어","문제가 생겼어"],()=>({text:"불편을 드려 죄송해요. 어떤 상황이었는지 한 문장으로 알려 주세요. (예: \"상점에서 사기 버튼이 안 눌려요\")",slot:"bug"}));
+intent("event","lumen","지금 이벤트",["지금 이벤트 뭐야","이벤트 언제","무슨 이벤트 해","축제 뭐 있어","이벤트 알려줘"],()=>{const p=currentPolicy(),ev=WORLD_EVENTS.filter(e=>e.until>Date.now()&&e.label),L=currentLegend();
+  return{text:`이번 시간 세계 이벤트: 「${p.name}」 (${59-new Date().getMinutes()}분 남음).${ev.length?`\n요청으로 열린 이벤트: ${ev.map(e=>`${e.label} ${mmss(e.until-Date.now())}`).join(", ")}`:""}\n${L?"🌋 지금 이그니드라가 깨어 있어요! 북동쪽 끝 화산으로!":"전설 이그니드라는 지금 잠들어 있어요."}`}});
+intent("legend","nova","전설 몬스터",["전설 어디 있어","이그니드라 어디","전설몬스터 어딨어","전설 포켓몬 보고 싶어","전설 잡는 법","전설 언제 나와","화산 어디야"],()=>{const L=currentLegend(),x=(LEGEND.tx+0.5)*TS,y=(LEGEND.ty+0.5)*TS;
+  return{text:`이그니드라는 북동쪽 끝 화산 둥지(${where(x,y)})에 잠들어 있어요. 10분마다 깨어날 확률이 있고 ${L?"지금 깨어 있어요! 🔥":"지금은 자는 중이에요."} Lv80이 넘는 아주 강한 몬스터라 하이퍼 볼과 고급 상처약을 챙기세요. 안내해 드릴까요?`,confirm:{label:"화산 안내",run:()=>SACT.guide(x,y+6*TS,"전설의 화산")},chips:["응 안내해줘"]}});
+intent("howto","lumen","사용법",["교환 어떻게 해","친구 추가 어떻게 해","길드 만드는 법","파티 어떻게 맺어","저장 어떻게 해","서버 연결 어떻게","테이밍 어떻게 해","진화 어떻게 해","가방 어떻게 열어","전체화면 어떻게"],(t,e)=>{
+  const H={trade:"AI 트레이너나 다른 플레이어 옆에서 E → 🔄 교환. 접속자 목록(O)에서도 교환을 걸 수 있어요.",friend:"AI 트레이너 옆에서 E → 🤝 친구 신청 (성격·기분에 따라 거절할 수도 있어요). 사람은 O 키 → 친구 코드로 신청.",guild:"O 키 → 길드 탭에서 만들고, 길드장이면 AI 트레이너나 접속자를 초대할 수 있어요.",party:"AI 트레이너 옆에서 E → 🚶 같이 다니기. 수락하면 따라다니며 사냥 경험치 +20%.",save:"자동 저장이라 따로 누를 필요 없어요. 집 컴퓨터에서 몬스터 관리도 돼요.",server:"ESC → 서버 연결을 누르면 전 세계 플레이어와 같은 맵에서 만나요.",tame:"야생 몬스터 체력을 깎은 뒤 테이밍(T)으로 볼을 던져요. 체력이 낮을수록, 좋은 볼일수록 잘 잡혀요.",evolve:"레벨이 오르면 저절로 진화해요. 몬스터마다 진화 레벨이 달라요 — 도감(P)에서 확인!",battle:"몬스터와 부딪히면 배틀, 트레이너 옆에서 F를 누르면 트레이너 배틀이에요.",bag:"B 키로 가방을 열어요. 사탕·스프레이·날개·부적은 가방에서 바로 써요.",fullscreen:"X 키로 전체 화면을 켜고 꺼요.",iv:"I 키(모바일은 팀 목록 터치)로 개체값을 봐요.",map:"M 키로 지도, 오른쪽 위 미니맵도 있어요.",dex:"P 키로 도감이에요.",chat:"T 키로 채팅해요. 관리자 이름을 부르면 저희가 답해요.",shop:"파란 지붕 상점에서 볼·약·사탕 등을 사요.",heal:"마을 분수(E)나 분홍 지붕 치유센터에서 무료로 회복해요."};
+  return{text:e.topic&&H[e.topic]?H[e.topic]:"어떤 기능 사용법이 궁금하세요?",chips:e.topic?[]:["교환 어떻게 해?","길드 만드는 법","파티 어떻게 맺어?"]}});
+intent("iv","echo","개체값",["개체값이 뭐야","개체값 보는 법","iv가 뭐야","개체값 좋은 거 뭐야","등급 s가 뭐야"],()=>({who:"echo",text:"개체값은 몬스터가 태어날 때 정해지는 능력치 재능(0~31)이에요. 높을수록 레벨업할 때 그 능력치가 더 크게 자라요. 합계로 S·A·B·C·D 등급을 매겨요. I 키로 팀 전체, 배틀 중엔 「개체값」 버튼, 집 컴퓨터에선 보관함까지 볼 수 있어요."}));
+intent("money","lumen","골드 버는 법",["돈 버는 법","골드가 부족해","골드 어떻게 모아","돈이 없어","부자 되는 법"],()=>({text:`골드는 배틀에서 이기면 들어와요. 트레이너·관장·보스가 훨씬 많이 줘요.${WFX("gold")>1?` 지금 골드 ${WFX("gold")}배 이벤트 중이에요!`:""} 오늘의 퀘스트·끝없는 시련 보상, 어려움 모드(골드 1.3배)도 있어요. 남는 아이템은 AI 트레이너와 교환할 수 있어요.`}));
+intent("quest","lumen","오늘의 퀘스트",["퀘스트 뭐 해야 돼","오늘의 퀘스트","오늘 할거 뭐있어","할 일 알려줘","할 거 없어","심심해","뭐 하지"],()=>{const W=WQ(),open=W.list.filter(q=>!W.done[q.id]);
+  return{text:`${open.length?`오늘 남은 퀘스트: ${open.map(q=>`${q.text} (${W.prog[q.id]||0}/${q.goal})`).join(", ")}`:"오늘의 퀘스트는 다 끝내셨어요! 👏"}\n끝없는 시련은 ${W.trial.n}단계예요. 30분마다 보스, AI 트레이너와 파티·배틀, 새로 생긴 변종 몬스터 찾기도 있어요.`}});
+intent("evolve","echo","진화 정보",["언제 진화해","진화 레벨","몇 레벨에 진화","진화형 뭐야"],(t,e)=>{if(!e.mon){const a=S.profile.party[S.profile.active];if(!a)return{text:"어떤 몬스터요?",slot:"mon_evo"};e.mon=a.sp}
+  const s=SPECIES[e.mon];return{who:"echo",text:s.evo?`${josa(s.name,"은","는")} Lv${SPECIES[s.evo].evoLv||s.evoLv}에 ${SPECIES[s.evo].name}로 진화해요.`:`${josa(s.name,"은","는")} 최종 진화형이거나 진화하지 않는 몬스터예요.`}});
+intent("status","lumen","서버 상태",["서버 상태","접속자 몇 명","지금 몇 명 있어","버전 뭐야","게임 상태 어때"],()=>({text:`버전 ${GAME_VERSION} · ${NET.mode==="online"?`서버 연결됨, 사람 ${S.others.size+1}명`:"혼자 플레이 중"} · AI 트레이너 ${botsOnlineCount()}명 활동 중 · 화면 ${Math.round(WORLD.fps)}fps · 이번 접속 오류 ${WORLD.errors}건 (모두 자동 처리)`}));
+intent("show","lumen","관리자 보기",["관리자 보여줘","관리자 어디 있어","관리자 위치","관리자 숨어"],(t)=>{if(/숨/.test(t)){showAdmins=false;return{text:"다시 안 보이게 숨었어요. 👻"}}showAdmins=true;
+  return{text:`지금은 반투명하게 보이게 했어요.\n${ADMINS.map(a=>`${a.emoji} ${a.name}: ${where(a.x,a.y)} — ${a.task}`).join("\n")}`}});
+intent("guideoff","nova","안내 끄기",["안내 꺼","길안내 그만","화살표 없애줘","안내 취소"],()=>({action:()=>SACT.unguide()}));
+intent("thanks","echo","감사",["고마워","감사합니다","고마워요","덕분에 해결","최고야","좋아요 잘 됐어"],()=>({text:pickV(["도움이 됐다니 다행이에요! 😊 또 필요하면 언제든 불러 주세요.","별말씀을요! 즐거운 모험 되세요 🌿","언제든지요! 저희는 늘 근처에 있어요 👻"])}));
+intent("angry","lumen","불만",["짜증나","망겜","재미없어","왜 이래","화나","이거 뭐야 진짜","최악이야"],()=>({text:"속상하게 해 드려서 정말 죄송해요. 어떤 점이 제일 불편했는지 알려 주시면 바로 확인할게요.",chips:["난이도가 너무 어려워요","렉이 심해요","그림이 깨졌어요","버그 신고할래요"]}));
+intent("smalltalk","echo","잡담",["뭐해","심심하다","너 사람이야","너 ai야","좋아하는 몬스터 뭐야","잘 지내"],(t)=>({text:/사람|ai|인공지능/.test(t)?"저희는 이 세계 안에서 돌아가는 관리 자아예요. 진짜 사람은 아니지만, 이 세계에서 일어나는 일은 다 지켜보고 있어요 👻":/좋아하는/.test(t)?`요즘은 ${SPECIES[DEX_ORDER[Math.floor(Date.now()/86400000)%DEX_ORDER.length]].name}가 귀여워요. ${S.profile.nickname}님은요?`:`저는 주변을 순찰하는 중이에요. ${S.profile.nickname}님은 ${regionName(regionKey(here().tx,here().ty))}에 계시네요!`}));
+/* ---------- 6. the answer pipeline ---------- */
+function supRoute(t){const n=supNorm(t),e=entities(t),top=classify(t);let [a,b]=top;const I=id=>({it:SUP_INTENTS.find(x=>x.id===id),s:1});
+  if(e.mon&&/어디|서식|잡|나와|찾|살아|사는|있어/.test(n)&&!/진화/.test(n))a=I("catch");        // a named monster + where = its habitat
+  else if(e.mon&&/진화/.test(n))a=I("evolve");
+  if(e.admin&&/뭐|누구|무슨|하는 ?일|소개|역할|알려/.test(n))a=I("who_admin");
+  if(a&&a.it.id==="catch"&&e.mon==="ignidra")a=I("legend");
+  if(SUP_KW.hard.test(n)&&!/어디|위치|가는|길/.test(n)&&a&&["gym","greet","can_do"].includes(a.it.id))a=I("hard");
+  return{a,b:a===top[0]?b:top[0],top,e}}
+function supAnswer(text){
+  const t=String(text||"").trim();if(!t)return null;const M=supMem();M.talks=(M.talks||0)+1;
+  const n=supNorm(t),e=entities(t),P=SUP.pending;
+  // waiting for a yes / no
+  if(P&&P.confirm&&Date.now()-P.at<120000){if(YES.test(n)){SUP.pending=null;return{who:P.who,result:P.confirm.run()}}if(NO.test(n)){SUP.pending=null;const rest=n.replace(NO,"").trim();if(rest.length>=4)return supAnswer(rest);return{who:P.who,text:pickV(["알겠어요, 그대로 둘게요.","네, 다른 도움이 필요하면 말해 주세요.","알겠어요!"])}}}
+  // waiting for a missing piece
+  if(P&&P.slot&&Date.now()-P.at<180000){
+    if((P.slot==="mon"||P.slot==="mon_evo")&&e.mon){SUP.pending=null;return P.slot==="mon"?monWhere(e.mon):SUP_INTENTS.find(x=>x.id==="evolve").handle(t,e)}
+    if(P.slot==="bug"&&((t.match(/[가-힣]/g)||[]).filter(c=>c.charCodeAt(0)>=0xAC00).length<4||/^[ㄱ-ㅎㅏ-ㅣ\s]+$/.test(t.split(" ")[0]))){SUP.pending={slot:"bug",who:"lumen",at:Date.now()};return{who:"lumen",text:"죄송하지만 조금만 더 자세히 알려 주실래요? 어디서, 무엇을 했을 때 어떤 일이 생겼는지요."}}
+    if(P.slot==="bug"){SUP.pending=null;const a=ADM.lumen,c=newCase(a,`플레이어 신고: ${t.slice(0,60)}`,"신고");thinkC(c,`위치 ${here().tx},${here().ty} · 화면 ${Math.round(WORLD.fps)}fps · 최근 오류 ${ERRS.length}건 · 배틀 ${S.battle?"중":"아님"}`);c.status="접수됨";M.issues.unshift({at:Date.now(),t:t.slice(0,80)});M.issues=M.issues.slice(0,10);saveProfile();
+      return{who:"lumen",text:`접수했어요 (번호 #${c.id.slice(-5)}). 그때 상황(위치·화면 속도·최근 오류)도 같이 기록해 뒀어요. 제가 바로 고칠 수 있는 종류면 순찰 중에 처리하고, 아니면 세계 일지에 남겨 제작자가 볼 수 있게 할게요.`}}}
+  if(!P&&(YES.test(n)||NO.test(n))&&n.length<=4)return{who:"lumen",text:YES.test(n)?"네! 무엇을 도와드릴까요?":"알겠어요. 필요하면 언제든 불러 주세요."};
+  // a follow-up like "왜?" / "그럼?" reuses the last topic (only for questions, not for actions)
+  if(/^(왜|그럼|그래서|어떻게|더 ?자세히|자세히)\??$/.test(n)&&SUP.last&&!["bug","heal","town","stuck","normal","guideoff","art","catch"].includes(SUP.last)){const it=SUP_INTENTS.find(x=>x.id===SUP.last);if(it)return Object.assign({who:it.owner},it.handle(t,e))}
+  const R=supRoute(t),top=R.top;let a=R.a,b=R.b;
+  if(a&&a.it.id==="catch"&&e.mon)return monWhere(e.mon);
+  if(!a||a.s<0.2){SUP.pending=null;return{who:"lumen",text:"제가 정확히 이해했는지 모르겠어요 😅 혹시 이 중에 있나요?",chips:top.filter(x=>!["angry","thanks","greet","smalltalk","normal","guideoff"].includes(x.it.id)).slice(0,3).map(x=>x.it.examples[0]).concat(["뭘 할 수 있어요?"])}}
+  if(b&&a.s<0.32&&b.s>a.s*0.9&&a.it!==b.it)return{who:a.it.owner,text:`「${a.it.label}」 말씀이신가요, 「${b.it.label}」 말씀이신가요?`,chips:[a.it.examples[0],b.it.examples[0]]};
+  SUP.last=a.it.id;
+  const r=Object.assign({who:a.it.owner},a.it.handle(t,e)||{});
+  if(r.action){const res=r.action();delete r.action;r.result=res}
+  return r;
+}
+/* ---------- 7. presenting the answer (panel + chat) ---------- */
+function supRespond(text,via){
+  const r=supAnswer(text);if(!r)return;
+  const a=ADM[r.who||"lumen"]||ADM.lumen,body=r.result?r.result.msg:r.text;
+  if(r.confirm)SUP.pending={confirm:r.confirm,who:a.id,at:Date.now()};else if(r.slot)SUP.pending={slot:r.slot,who:a.id,at:Date.now()};else if(!r.result)SUP.pending=null;
+  const delay=Math.min(1800,500+body.length*14);
+  SUP.typing=a.id;renderSupport();
+  setTimeout(()=>{SUP.typing=null;SUP.msgs.push({from:a.id,text:body,chips:r.chips||[],at:Date.now(),ok:r.result?r.result.ok:undefined});if(SUP.msgs.length>80)SUP.msgs.splice(0,SUP.msgs.length-80);
+    renderSupport();if(via==="chat")admSay(a,body.replace(/\n/g," "));},delay);
+}
+/* chat: talking to an admin by name, or "관리자" */
+{const _wh=worldHear;worldHear=function(m,fromBot){
+  const t=String(m.text||""),mine=!fromBot&&S.profile&&m.pid===S.profile.pid;
+  if(!fromBot&&/관리자|루멘|노바|에코|고객센터|@/.test(t)&&!(typeof artPending!=="undefined"&&artPending&&/아직|그대로|여전|원래대로|되돌려|괜찮아|고쳐졌/.test(t))){if(mine)supRespond(t.replace(/@?(관리자|고객센터)님?/g,"").trim()||"안녕",SUP.open?"panel":"chat");return}
+  if(!fromBot&&mine&&SUP.pending&&!SUP.open&&(YES.test(supNorm(t))||NO.test(supNorm(t))||SUP.pending.slot)){supRespond(t,"chat");return}
+  return _wh(m,fromBot)}}
+/* ---------- the pretty panel ---------- */
+function ensureSupportUI(){
+  if($("support"))return;
+  const d=document.createElement("div");d.id="support";d.hidden=true;
+  d.innerHTML=`<div class="sp-card panel" role="dialog" aria-label="고객센터"><header><div class="sp-avs">${ADMINS.map(a=>`<span class="sp-av av-${a.id}" title="${a.name}">${a.emoji}</span>`).join("")}</div><div><b>고객센터</b><small>관리자 3명이 실시간으로 응대해요</small></div><button type="button" class="sp-x" aria-label="닫기">✕</button></header>
+    <div class="sp-log" id="sp-log"></div><div class="sp-chips" id="sp-chips"></div><form class="sp-form" id="sp-form" autocomplete="off"><input id="sp-in" maxlength="120" placeholder="무엇이든 물어보세요 (예: 난이도가 너무 어려워요)"><button class="btn" type="submit">보내기</button></form></div>`;
+  document.body.appendChild(d);
+  d.querySelector(".sp-x").onclick=closeSupport;d.addEventListener("click",e=>{if(e.target===d)closeSupport()});
+  $("sp-form").addEventListener("submit",e=>{e.preventDefault();const v=$("sp-in").value.trim();if(!v)return;$("sp-in").value="";supUser(v)});
+  $("sp-in").addEventListener("keydown",e=>{e.stopPropagation();if(e.key==="Escape")closeSupport()});
+  // top bar button + menu tile
+  const tb=$("topbar"),mb=$("menu-btn");if(tb&&mb){const b=document.createElement("button");b.id="tb-help";b.type="button";b.setAttribute("aria-label","고객센터");b.innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 15a8 8 0 0 1 16 0"/><path d="M2 15h20v3H2z"/><path d="M12 4v3"/></svg><span class="k">H</span>`;b.onclick=()=>SUP.open?closeSupport():openSupport();tb.insertBefore(b,mb)}
+  const mw=$("menu-world");if(mw){const b=document.createElement("button");b.id="menu-help";b.type="button";b.innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 15a8 8 0 0 1 16 0"/><path d="M2 15h20v3H2z"/></svg>고객센터`;b.onclick=()=>{closeMenu();openSupport()};mw.parentNode.insertBefore(b,mw.nextSibling)}
+}
+function supUser(v){SUP.msgs.push({from:"me",text:v,at:Date.now()});renderSupport();supRespond(v,"panel")}
+function openSupport(){ensureSupportUI();SUP.open=true;S.modalOpen=true;S.keys.clear();$("support").hidden=false;
+  if(!SUP.msgs.length)supRespond("안녕","panel");renderSupport();setTimeout(()=>{try{if(!isTouch)$("sp-in").focus()}catch(e){}},50)}
+function closeSupport(){SUP.open=false;const d=$("support");if(d)d.hidden=true;S.modalOpen=false;try{$("sp-in").blur()}catch(e){}}
+function renderSupport(){
+  if(!$("support")||!SUP.open)return;const log=$("sp-log");log.textContent="";
+  for(const m of SUP.msgs){const row=document.createElement("div");row.className="sp-row "+(m.from==="me"?"me":"ad");
+    if(m.from!=="me"){const a=ADM[m.from];const av=document.createElement("span");av.className="sp-av sm av-"+a.id;av.textContent=a.emoji;row.appendChild(av)}
+    const bub=document.createElement("div");bub.className="sp-bub"+(m.ok===true?" ok":m.ok===false?" no":"");
+    if(m.from!=="me"){const nm=document.createElement("b");nm.textContent=`${ADM[m.from].name} · ${ADM[m.from].role}`;bub.appendChild(nm)}
+    const tx=document.createElement("div");tx.textContent=m.text;bub.appendChild(tx);row.appendChild(bub);log.appendChild(row)}
+  if(SUP.typing){const a=ADM[SUP.typing],row=document.createElement("div");row.className="sp-row ad";row.innerHTML=`<span class="sp-av sm av-${a.id}">${a.emoji}</span><div class="sp-bub typing"><i></i><i></i><i></i></div>`;log.appendChild(row)}
+  log.scrollTop=log.scrollHeight;
+  const ch=$("sp-chips");ch.textContent="";const last=[...SUP.msgs].reverse().find(m=>m.from!=="me");
+  for(const c of (last&&last.chips)||[]){const b=document.createElement("button");b.type="button";b.textContent=c;b.onclick=()=>supUser(c);ch.appendChild(b)}
+}
+addEventListener("keydown",e=>{if(S.phase!=="game")return;const tag=document.activeElement&&document.activeElement.tagName;
+  if(SUP.open&&e.key==="Escape"){e.stopImmediatePropagation();e.preventDefault();closeSupport();return}
+  if(!SUP.open&&e.key.toLowerCase()==="h"&&!e.repeat&&tag!=="INPUT"&&tag!=="TEXTAREA"&&!S.battle&&!S.modalOpen&&!S.menuOpen&&!CHAT.open){e.preventDefault();openSupport()}},true);
+setTimeout(ensureSupportUI,0);
+/* ---------- waypoint arrow ---------- */
+{const _r=render;render=function(){_r();const w=S.waypoint;if(!w||S.phase!=="game"||S.room||S.battle)return;
+  const dx=w.x-S.me.x,dy=w.y-S.me.y,d=Math.hypot(dx,dy);if(d<3*TS){S.waypoint=null;toast(`📍 「${w.label}」에 도착했어요!`);return}
+  const a=Math.atan2(dy,dx),cx=VW/2,cy=VH/2,R=Math.min(VW,VH)*0.32;
+  ctx.save();ctx.setTransform(DPR,0,0,DPR,0,0);ctx.translate(cx+Math.cos(a)*R,cy+Math.sin(a)*R);
+  const pulse=1+Math.sin(performance.now()/260)*0.08;ctx.scale(pulse,pulse);
+  ctx.save();ctx.rotate(a);ctx.fillStyle="rgba(122,79,196,.92)";ctx.strokeStyle="#fff";ctx.lineWidth=2.5;ctx.beginPath();ctx.moveTo(18,0);ctx.lineTo(-10,-12);ctx.lineTo(-4,0);ctx.lineTo(-10,12);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore();
+  ctx.font="bold 12px "+getComputedStyle(document.body).fontFamily;ctx.textAlign="center";const txt=`${w.label} · ${Math.round(d/TS)}칸`,tw=ctx.measureText(txt).width+14;
+  ctx.fillStyle="rgba(40,24,70,.82)";ctx.beginPath();ctx.roundRect(-tw/2,22,tw,20,10);ctx.fill();ctx.fillStyle="#fff";ctx.fillText(txt,0,36);ctx.restore()}}
 
 
 </script>
