@@ -219,6 +219,18 @@ kbd{font-family:var(--display);background:#fff;border:1px solid var(--line);bord
 .sp-form{display:flex;gap:8px;padding:10px 12px 12px;background:#fffdf8}.sp-form input{flex:1;min-width:0;font:inherit;font-size:14px;padding:9px 12px;border-radius:12px;border:2px solid var(--line);background:#fff}
 .sp-form .btn{padding:8px 14px;font-size:14px}
 @media (max-width:640px){#support{padding:0}.sp-card{width:100%;height:78vh;border-radius:22px 22px 0 0}}
+#xprompt{position:fixed;z-index:40;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:#fffdf8;border-radius:18px;padding:12px 16px;box-shadow:0 10px 30px rgba(40,25,10,.28);display:grid;gap:4px;min-width:min(340px,92vw);text-align:center;animation:xpin .18s ease-out}
+#xprompt[hidden]{display:none}#xprompt b{font-family:var(--display);font-size:18px}#xprompt span{font-size:14px}#xprompt small{color:var(--muted);font-size:12px}
+#xprompt kbd{display:inline-block;padding:0 6px;border-radius:5px;background:var(--panel-2);border:1px solid var(--line);font-size:11px}
+.xp-row{display:flex;gap:8px;justify-content:center;margin-top:6px}.xp-row .btn{padding:8px 16px;font-size:15px}
+@keyframes xpin{from{transform:translate(-50%,12px);opacity:0}to{transform:translate(-50%,0);opacity:1}}
+#zoomtag{position:fixed;z-index:30;right:16px;bottom:calc(70px + env(safe-area-inset-bottom,0px));background:rgba(30,25,20,.75);color:#fff;border-radius:999px;padding:4px 12px;font-size:13px;pointer-events:none}#zoomtag[hidden]{display:none}
+#flyfx{position:fixed;inset:0;z-index:70;pointer-events:none;display:grid;place-items:center;font-family:var(--display);font-size:24px;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.4);opacity:0;background:radial-gradient(circle,rgba(255,255,255,.0),rgba(170,210,255,.0))}
+#flyfx.on{animation:flyfx 1.5s ease-in-out}
+@keyframes flyfx{0%{opacity:0;background:radial-gradient(circle,rgba(255,255,255,0),rgba(170,210,255,0))}35%{opacity:1;background:radial-gradient(circle,rgba(255,255,255,.95),rgba(170,210,255,.98))}65%{opacity:1;background:radial-gradient(circle,rgba(255,255,255,.95),rgba(170,210,255,.98))}100%{opacity:0}}
+#flylist{position:absolute;top:64px;right:16px;z-index:5;width:min(300px,86vw);max-height:60vh;overflow:auto;background:#fffdf8;border-radius:14px;padding:10px;display:grid;gap:6px;box-shadow:0 10px 30px rgba(0,0,0,.3)}#flylist[hidden]{display:none}
+#flylist .fl-h{font-size:13px;color:var(--muted)}#flylist button{border:1.5px solid var(--line);background:var(--panel-2);border-radius:10px;padding:8px 10px;text-align:left;font-family:var(--body);font-size:14px;color:var(--text)}#flylist button:disabled{opacity:.5}
+.adm.mind{background:rgba(79,127,216,.07);border-color:rgba(79,127,216,.25)}
 @media (max-width:640px){#ev-hud{bottom:auto;top:calc(160px + env(safe-area-inset-top,0px));font-size:12px}}
 /* world AI panel */
 #world-ai{position:fixed;inset:0;z-index:23;display:grid;place-items:center;padding:16px;background:rgba(40,34,28,.45)}
@@ -4600,7 +4612,7 @@ function tag(c,text,x,y,col){
    LIVE UPDATE — when a new version is published at the game's address,
    swap to it in about a second, keeping login, position and connection.
    ===================================================================== */
-const GAME_VERSION="0.17.0";
+const GAME_VERSION="0.18.0";
 const UPDATE_CHECK_MS=15000;
 let pendingUpdate=null;
 function verNewer(a,b){const p=s=>String(s).split(".").map(n=>parseInt(n)||0);const x=p(a),y=p(b);for(let i=0;i<Math.max(x.length,y.length);i++){if((x[i]||0)!==(y[i]||0))return(x[i]||0)>(y[i]||0)}return false}
@@ -4667,7 +4679,7 @@ function update(dt){
   follow(S.comp,m,dt);
   // walking into a wild monster starts a battle
   if(!S.battle&&!S.dialog&&!S.modalOpen&&!S.menuOpen&&!S.mapOpen&&!S.dexOpen&&!S.creatorOpen&&!S.learn&&Date.now()>S.encounterCool&&activeMon()){
-    for(const w of wildNear(m.x,m.y,1))if(Math.hypot(w.x-m.x,w.y-m.y)<(w.legend?88:w.boss?30:20)){startWildBattle(w);break}
+    for(const w of wildNear(m.x,m.y,1))if(Math.hypot(w.x-m.x,w.y-m.y)<(w.legend?88:w.boss?30:20)){if(typeof askEncounter==="function"){if(askEncounter(w))break}else{startWildBattle(w);break}}
   }
   if((S.t%1)<dt)bossWatch();
   if((S.t%1)<dt)refreshQuest();
@@ -5139,7 +5151,7 @@ $("bd-close").addEventListener("click",closeBoard);
    ===================================================================== */
 const ctx=cvs.getContext("2d");
 let VW=0,VH=0,DPR=1,Z=2,DPR_CAP=2;
-function resize(){DPR=Math.min(DPR_CAP,window.devicePixelRatio||1);VW=innerWidth;VH=innerHeight;cvs.width=Math.round(VW*DPR);cvs.height=Math.round(VH*DPR);Z=VW<560?1.75:VW<1100?1.9:Math.min(2.2,Math.max(1.8,VH/400))}
+function resize(){DPR=Math.min(DPR_CAP,window.devicePixelRatio||1);VW=innerWidth;VH=innerHeight;cvs.width=Math.round(VW*DPR);cvs.height=Math.round(VH*DPR);Z=(VW<560?1.75:VW<1100?1.9:Math.min(2.2,Math.max(1.8,VH/400)))*(window.ZOOM_MUL||1)}
 addEventListener("resize",resize);resize();
 
 /* local minimap: tiles around the player */
@@ -5265,8 +5277,9 @@ function render(){
   }
   if(S.phase==="game"){
     const sp=activeSp();
-    if(sp)ents.push({y:S.comp.y,draw:()=>{drawMon(ctx,sp,S.comp.x,S.comp.y,t,S.comp.dir,S.comp.moving,1,activeMon().shiny);grassOverlay(ctx,S.comp.x,S.comp.y,t)}});
-    ents.push({y:S.me.y,draw:()=>{drawTrainer(ctx,S.me.x,S.me.y,t,S.me.dir,S.me.moving,myLook(),isRunning());grassOverlay(ctx,S.me.x,S.me.y,t)},lab:()=>{label(ctx,S.profile.nickname,S.me.x,S.me.y-55,"#ffd24a");drawBubble(ctx,"me",S.me.x,S.me.y-66)}});
+    const riding=typeof S.ride==="object"&&S.ride;
+    if(sp&&!(riding&&riding.useComp))ents.push({y:S.comp.y,draw:()=>{drawMon(ctx,sp,S.comp.x,S.comp.y,t,S.comp.dir,S.comp.moving,1,activeMon().shiny);grassOverlay(ctx,S.comp.x,S.comp.y,t)}});
+    ents.push({y:S.me.y,draw:()=>{if(riding&&typeof drawRider==="function"){drawRider(ctx,t);return}drawTrainer(ctx,S.me.x,S.me.y,t,S.me.dir,S.me.moving,myLook(),isRunning());grassOverlay(ctx,S.me.x,S.me.y,t)},lab:()=>{label(ctx,S.profile.nickname,S.me.x,S.me.y-55,"#ffd24a");drawBubble(ctx,"me",S.me.x,S.me.y-66)}});
   }
   ents.sort((a,b)=>a.y-b.y);
   for(const e of ents)e.draw();
@@ -7443,6 +7456,433 @@ BD.b_cryonaga=(c,x,y,t,dir,hop)=>bossFrame(c,x,y,dir,()=>{
   c.strokeStyle="rgba(255,255,255,.85)";c.lineWidth=0.6;for(let i=0;i<3;i++){const a=t*0.9+i*2.1,px=x+Math.cos(a)*22,py=by-20+Math.sin(a*1.3)*8;for(let k=0;k<3;k++){c.beginPath();c.moveTo(px-2*Math.cos(k),py-2*Math.sin(k));c.lineTo(px+2*Math.cos(k),py+2*Math.sin(k));c.stroke()}}
 });
 for(const [id,fn] of Object.entries(BD))NEW_DRAW[id]=fn;
+
+/* =====================================================================
+   탐험 업데이트 — 만나면 물어보기(F), 휠·트랙패드 줌, 어깨 씰룩,
+   지역마다 다른 명소·이스터에그, 날기(지도에서 가 본 곳으로), 물 타기·얼음 달리기,
+   타고 다니기(V), 동굴(동굴에만 사는 몬스터)
+   ===================================================================== */
+/* ---------- shared prompt card ---------- */
+function xprompt(html,buttons){let el=$("xprompt");if(!el){el=document.createElement("div");el.id="xprompt";document.body.appendChild(el)}
+  el.innerHTML=html;const row=document.createElement("div");row.className="xp-row";
+  for(const [lab,fn,cls] of buttons){const b=document.createElement("button");b.type="button";b.className="btn"+(cls?" "+cls:"");b.textContent=lab;b.onclick=fn;row.appendChild(b)}el.appendChild(row);el.hidden=false}
+function xclose(){const el=$("xprompt");if(el)el.hidden=true}
+/* ---------- 1. meeting a wild monster asks first ---------- */
+const ENC={w:null,at:0,skip:new Map()};
+function askEncounter(w){
+  if(ENC.w)return true;const sk=ENC.skip.get(w.id);if(sk&&sk>Date.now())return false;
+  ENC.w=w;ENC.at=Date.now();const s=SPECIES[w.sp];
+  xprompt(`<b>${w.legend?"🌋 전설의 몬스터!":w.boss?"👑 보스 출현!":"야생 몬스터와 마주쳤어요!"}</b><span>${w.shiny?"✨ ":""}${s.name} · Lv${w.lv} · ${TYPES[s.type].name} 타입</span><small>싸울까요? <kbd>F</kbd> 싸우기 · <kbd>Esc</kbd> 지나가기</small>`,
+    [["⚔️ 싸우기 (F)",encFight],["지나가기",encSkip,"ghost"]]);return true}
+function encFight(){const w=ENC.w;ENC.w=null;xclose();if(w&&!S.battle)startWildBattle(w)}
+function encSkip(){const w=ENC.w;ENC.w=null;xclose();if(w){ENC.skip.set(w.id,Date.now()+8000);S.encounterCool=Date.now()+1500}}
+setInterval(()=>{const w=ENC.w;if(!w)return;if(S.battle||S.phase!=="game"){ENC.w=null;xclose();return}
+  if(w.free)return;const live=wildNear(S.me.x,S.me.y,1).find(x=>x.id===w.id);if(!live||Math.hypot(live.x-S.me.x,live.y-S.me.y)>(w.legend?150:80))encSkip()},300);
+addEventListener("keydown",e=>{if(S.phase!=="game"||document.activeElement&&/INPUT|TEXTAREA/.test(document.activeElement.tagName))return;const k=e.key.toLowerCase();
+  if(ENC.w&&(k==="f"||k==="enter")){e.preventDefault();e.stopImmediatePropagation();if(!e.repeat)encFight();return}
+  if(ENC.w&&k==="escape"){e.preventDefault();e.stopImmediatePropagation();encSkip();return}
+  if(RIDEQ.kind&&(k==="f"||k==="enter")){e.preventDefault();e.stopImmediatePropagation();if(!e.repeat)rideConfirm();return}
+  if(RIDEQ.kind&&k==="escape"){e.preventDefault();e.stopImmediatePropagation();RIDEQ.kind=null;RIDEQ.no=Date.now()+6000;xclose();return}
+  if(k==="v"&&!e.repeat&&!S.battle&&!S.modalOpen&&!S.menuOpen&&!S.dialog&&!CHAT.open){e.preventDefault();toggleLandRide()}},true);
+/* ---------- 2. zoom: mouse wheel, Mac trackpad pinch (ctrl+wheel / Safari gestures), keys ---------- */
+try{window.ZOOM_MUL=Math.max(0.6,Math.min(2,+localStorage.getItem("mtw-zoom")||1))}catch(e){window.ZOOM_MUL=1}
+resize();
+let zoomSaveT=0;
+function setZoom(m){window.ZOOM_MUL=Math.max(0.6,Math.min(2,m));resize();clearTimeout(zoomSaveT);zoomSaveT=setTimeout(()=>{try{localStorage.setItem("mtw-zoom",String(window.ZOOM_MUL))}catch(e){}},400);showZoom()}
+function showZoom(){let el=$("zoomtag");if(!el){el=document.createElement("div");el.id="zoomtag";document.body.appendChild(el)}el.textContent=`🔍 ${Math.round(window.ZOOM_MUL*100)}%`;el.hidden=false;clearTimeout(showZoom.t);showZoom.t=setTimeout(()=>el.hidden=true,900)}
+cvs.addEventListener("wheel",e=>{if(S.phase!=="game"||S.battle||S.mapOpen)return;e.preventDefault();
+  const k=e.ctrlKey?0.012:0.0016;setZoom(window.ZOOM_MUL*Math.exp(-e.deltaY*k))},{passive:false});
+let gScale=1;addEventListener("gesturestart",e=>{if(S.mapOpen)return;e.preventDefault();gScale=window.ZOOM_MUL});
+addEventListener("gesturechange",e=>{if(S.phase!=="game")return;e.preventDefault();if(S.mapOpen)mapZoom(Math.pow(e.scale,0.15));else setZoom(gScale*e.scale)});
+addEventListener("keydown",e=>{if(S.phase!=="game"||S.mapOpen||S.battle||S.modalOpen||CHAT.open||e.target.tagName==="INPUT")return;if(e.key==="="||e.key==="+"){setZoom(window.ZOOM_MUL*1.12)}else if(e.key==="-"||e.key==="_"){setZoom(window.ZOOM_MUL/1.12)}else if(e.key==="0"&&!e.repeat){setZoom(1)}});
+/* touch pinch in the world */
+{const pts=new Map();let d0=0,z0=1;cvs.addEventListener("pointerdown",e=>{if(e.pointerType==="touch")pts.set(e.pointerId,[e.clientX,e.clientY]);if(pts.size===2){const [a,b]=[...pts.values()];d0=Math.hypot(a[0]-b[0],a[1]-b[1]);z0=window.ZOOM_MUL}});
+  cvs.addEventListener("pointermove",e=>{if(!pts.has(e.pointerId))return;pts.set(e.pointerId,[e.clientX,e.clientY]);if(pts.size===2&&d0>20){const [a,b]=[...pts.values()];setZoom(z0*Math.hypot(a[0]-b[0],a[1]-b[1])/d0)}});
+  for(const ev of ["pointerup","pointercancel"])cvs.addEventListener(ev,e=>{pts.delete(e.pointerId);if(pts.size<2)d0=0})}
+/* map: smoother wheel + trackpad pinch */
+wmc.addEventListener("wheel",e=>{e.preventDefault();e.stopImmediatePropagation();mapZoom(Math.exp(-e.deltaY*(e.ctrlKey?0.01:0.0018)))},{passive:false,capture:true});
+/* ---------- 3. shoulders that bob and shrug ---------- */
+{const _dt=drawTrainer;drawTrainer=function(c,x,y,t,dir,moving,look,run){
+  c.save();c.translate(x,y);
+  if(moving){const ph=t*(run?15:11);c.rotate(Math.sin(ph)*0.035);c.scale(1+Math.sin(ph*2)*0.018,1-Math.sin(ph*2)*0.012)}
+  else{const cyc=(t+((x*7+y*3)%5))%4.2;if(cyc<0.55){const k=Math.sin(cyc/0.55*Math.PI*2);c.scale(1-Math.abs(k)*0.025,1+Math.max(0,k)*0.045)}else c.rotate(Math.sin(t*1.3)*0.012)}
+  c.translate(-x,-y);try{_dt(c,x,y,t,dir,moving,look,run)}finally{c.restore()}}}
+/* ---------- 4. landmarks & easter eggs ---------- */
+const POI_CELL=52;
+const POI_TYPES={
+  statue:{n:"고대 석상",w:3,icon:"🗿"},flowers:{n:"하트 꽃밭",w:3,icon:"💗"},crystals:{n:"수정 정원",w:2.5,icon:"💎"},well:{n:"소원 우물",w:2.5,icon:"🪙"},
+  mushring:{n:"요정의 버섯 고리",w:2,icon:"🍄"},oldtree:{n:"천년 고목",w:2,icon:"🌳"},catshrine:{n:"고양이 신전",w:0.8,icon:"🐱"},rainbow:{n:"무지개 언덕",w:0.5,icon:"🌈"},
+  cave:{n:"동굴 입구",w:3.2,icon:"🕳️"},spring:{n:"회복의 샘",w:0,icon:"⛲"},sign:{n:"길잡이 표지판",w:0,icon:"🪧"}};
+const POI_CACHE=new Map();
+function poiAt(gx,gy){const k=gx+","+gy;if(POI_CACHE.has(k))return POI_CACHE.get(k);let p=null;
+  if(hash(gx,gy,8800)<0.46){const cx=(gx+0.5)*POI_CELL+Math.round((hash(gx,gy,8801)-0.5)*POI_CELL*0.5),cy=(gy+0.5)*POI_CELL+Math.round((hash(gx,gy,8802)-0.5)*POI_CELL*0.5);
+    if(townDist(cx,cy)>26&&legendDist(cx,cy)>40){
+      const bio=biomeAt(cx,cy),rocky=bio==="fighting"||bio==="dragon"||bio==="snow"||bio==="fire";
+      const opts=Object.entries(POI_TYPES).filter(([,v])=>v.w>0).map(([k,v])=>[k,v.w*(k==="cave"?(rocky?2.2:0.7):1)]);
+      let tot=0;for(const [,w] of opts)tot+=w;let r=hash(gx,gy,8803)*tot,type=opts[0][0];for(const [k2,w] of opts){if((r-=w)<0){type=k2;break}}
+      const spot=poiSpot(cx,cy);if(spot)p={id:`poi_${gx}_${gy}`,type,tx:spot[0],ty:spot[1],x:(spot[0]+0.5)*TS,y:(spot[1]+0.7)*TS,bio}}}
+  POI_CACHE.set(k,p);if(POI_CACHE.size>600)POI_CACHE.clear();return p}
+function poiSpot(cx,cy){for(let r=0;r<10;r++)for(let j=-r;j<=r;j++)for(let i=-r;i<=r;i++){if(Math.max(Math.abs(i),Math.abs(j))!==r)continue;const x=cx+i,y=cy+j;
+  if(walkTile(x,y)&&walkTile(x+1,y)&&walkTile(x-1,y)&&walkTile(x,y+1)&&tileAt(x,y)!==T.PATH&&!inTown(x,y)&&!gymZone(x,y))return[x,y]}return null}
+const EXTRA_POI=[]; // added by the world's mind (springs, signposts …), shared through the world state
+function poisNear(x,y,R=1){const gx=Math.floor(x/TS/POI_CELL),gy=Math.floor(y/TS/POI_CELL),out=[];
+  for(let j=-R;j<=R;j++)for(let i=-R;i<=R;i++){const p=poiAt(gx+i,gy+j);if(p)out.push(p)}
+  for(const p of EXTRA_POI)if(Math.abs(p.x-x)<(R+1)*POI_CELL*TS&&Math.abs(p.y-y)<(R+1)*POI_CELL*TS)out.push(p);return out}
+function foundMap(){const p=S.profile;if(!p.found||typeof p.found!=="object")p.found={};return p.found}
+function discover(p){const F=foundMap();if(F[p.id])return;F[p.id]={type:p.type,x:p.x,y:p.y,at:Date.now()};saveProfile();
+  const n=Object.keys(F).length;toast(`✨ 발견! ${POI_TYPES[p.type].icon} ${POI_TYPES[p.type].n} (발견한 명소 ${n}곳)`);try{mindObserve("discover",`${POI_TYPES[p.type].n} 발견`,3)}catch(e){}
+  worldLog(`${S.profile.nickname}님이 ${POI_TYPES[p.type].n}을(를) 처음 발견했어요`,"ok")}
+const dayKey=()=>dayOf(Date.now());
+function poiOnce(p,tag,ms){const F=foundMap(),f=F[p.id]||(F[p.id]={type:p.type,x:p.x,y:p.y,at:Date.now()});const k="u_"+tag;if(f[k]&&(ms==null||Date.now()-f[k]<ms))return false;f[k]=Date.now();saveProfile();return true}
+const LORE=["「이 땅의 몬스터들은 모두 하나의 나무에서 태어났다」 — 오래된 글씨가 새겨져 있다.","「북동쪽 불의 산에 잠든 자를 깨우지 마라」","「길을 잃은 자여, 동쪽의 해를 따라가라」","「세 개의 별이 겹치는 밤, 버섯 고리가 빛난다」","「진정한 트레이너는 몬스터와 함께 웃는 자다」"];
+function poiInteract(p){
+  const nm=POI_TYPES[p.type].n,h=hash(p.tx,p.ty,8900);
+  switch(p.type){
+    case"statue":openDialog(nm,[LORE[Math.floor(h*LORE.length)],poiOnce(p,"statue")?"석상의 눈이 잠깐 빛났다… 발밑에서 골드 300G를 발견했다!":"석상은 말이 없다."],()=>{});if(foundMap()[p.id].u_statue>Date.now()-2000)addGold(300);break;
+    case"flowers":{if(poiOnce(p,"heal",600000)){for(const m of S.profile.party){const st=monStats(m);if(m.hp>0)m.hp=Math.min(st.hp,m.hp+Math.ceil(st.hp*0.3))}renderParty();saveProfile();toast("💗 꽃향기에 몬스터들의 체력이 30% 회복됐어요")}else toast("꽃밭이 살랑거려요. 10분 뒤에 다시 와 보세요");break}
+    case"crystals":{if(poiOnce(p,"gift",86400000)){const items=["superball","hyperball","candy","repel","superpotion","reviver"],k=items[Math.floor(Math.random()*items.length)];bagAdd(k,1);saveProfile();toast(`💎 수정 사이에서 ${ITEMS[k].n}을(를) 찾았어요!`)}else toast("수정이 은은하게 빛나요. 내일 다시 오면 또 뭔가 있을지도");break}
+    case"well":{if(S.profile.gold<100){toast("소원을 빌려면 100G가 필요해요");break}addGold(-100);const r=Math.random();
+      if(r<0.15){S.profile.buffs=S.profile.buffs||{};S.profile.buffs.charm=Math.max(Date.now(),S.profile.buffs.charm||0)+5*60000;saveProfile();toast("🪙 퐁당! 소원이 이루어졌어요 — 5분 동안 행운의 부적 효과!")}
+      else if(r<0.35){addGold(300);toast("🪙 퐁당! 우물에서 300G가 튀어나왔어요!")}else if(r<0.55){bagAdd("potion",2);toast("🪙 퐁당! 상처약 2개를 받았어요")}else toast("🪙 퐁당… 아무 일도 없었지만 기분이 좋아요");break}
+    case"mushring":{const night=nightLevel()>0.5||new Date().getMinutes()%10<3;
+      if(night&&poiOnce(p,"fairy",1800000)){const pool=["poppry","fluri","mimi"],sp=pool[Math.floor(Math.random()*pool.length)];toast("🍄 버섯 고리가 빛나며 요정 몬스터가 나타났어요!");askEncounter({free:true,id:"fairy_"+p.id+"_"+Date.now(),sp,lv:Math.max(5,levelAt(p.tx,p.ty)),x:p.x,y:p.y,shiny:Math.random()<0.08})}
+      else toast("버섯 고리가 조용해요. 밤이나 매 10분의 처음 3분에 다시 와 보세요");break}
+    case"oldtree":openDialog(nm,["나무 구멍 안에 쪽지가 있다.",`「${S.profile.nickname}에게. 이걸 찾았다면 넌 진짜 탐험가야. — 세계를 만든 사람이」`,poiOnce(p,"note")?"쪽지와 함께 500G가 들어 있었다!":"이미 읽은 쪽지다."],()=>{});if(Date.now()-foundMap()[p.id].u_note<2000)addGold(500);break;
+    case"catshrine":{addChat({who:"🐱 고양이 신전",text:"냥.",kind:"world",col:"#c08a3a"});if(poiOnce(p,"cat")){bagAdd("hyperball",1);saveProfile();toast("🐱 냥! 하이퍼 볼 1개를 받았어요")}break}
+    case"rainbow":{if(poiOnce(p,"rainbow",86400000)){S.profile.buffs=S.profile.buffs||{};S.profile.buffs.charm=Math.max(Date.now(),S.profile.buffs.charm||0)+10*60000;S.profile.title="무지개를 본 자";saveProfile();toast("🌈 칭호 「무지개를 본 자」 + 10분 행운!")}else toast("무지개가 아직 떠 있어요 🌈");break}
+    case"spring":{healAll();toast("⛲ 회복의 샘 — 몬스터들이 모두 회복했어요!");break}
+    case"sign":{const g=GYMS.find(x=>!S.profile.badges.includes(x.id));toast(g?`🪧 「${g.name} → ${dirWord((g.tx-p.tx),(g.ty-p.ty))}쪽 ${Math.round(Math.hypot(g.tx-p.tx,g.ty-p.ty))}칸」`:"🪧 「모든 체육관을 정복한 자에게 영광을」");break}
+    case"cave":enterCave(p);break;
+  }
+}
+/* drawing landmarks */
+function drawPoi(c,p,t){const x=p.x,y=p.y;
+  switch(p.type){
+    case"statue":shadowOval(c,x,y,12,4,.3);c.fillStyle="#9a958c";c.beginPath();c.roundRect(x-9,y-4,18,6,2);c.fill();c.fillStyle="#b4afa5";c.beginPath();c.moveTo(x-6,y-4);c.lineTo(x-7,y-26);c.quadraticCurveTo(x,y-38,x+7,y-26);c.lineTo(x+6,y-4);c.closePath();c.fill();c.strokeStyle="#6e6a62";c.lineWidth=1;c.stroke();
+      c.fillStyle="#6e6a62";c.fillRect(x-4,y-27,3,2);c.fillRect(x+1,y-27,3,2);c.fillStyle=`rgba(120,220,255,${0.4+Math.sin(t*2)*0.3})`;c.fillRect(x-4,y-27,3,1.4);c.fillRect(x+1,y-27,3,1.4);c.fillStyle="#7fa66a";c.beginPath();c.ellipse(x-5,y-10,3,1.5,0.4,0,7);c.fill();break;
+    case"flowers":for(let i=0;i<14;i++){const a=i/14*Math.PI*2,r=9+Math.sin(i*3)*2,hx=16*Math.pow(Math.sin(a),3),hy=-(13*Math.cos(a)-5*Math.cos(2*a)-2*Math.cos(3*a)-Math.cos(4*a));
+      const fx=x+hx*0.9,fy=y-8+hy*0.6;c.fillStyle=i%2?"#ff8fb8":"#ffd0e2";c.beginPath();c.arc(fx,fy+Math.sin(t*2+i)*0.4,2.2,0,7);c.fill();c.fillStyle="#ffe27a";c.beginPath();c.arc(fx,fy,0.8,0,7);c.fill()}break;
+    case"crystals":for(const [dx,h,col] of [[-7,14,"#9b7bff"],[0,22,"#7fd6f0"],[7,16,"#c9b6ff"],[-2,10,"#bfe6ff"]]){c.fillStyle=col;c.beginPath();c.moveTo(x+dx-3,y);c.lineTo(x+dx,y-h);c.lineTo(x+dx+3,y);c.closePath();c.fill();c.fillStyle="#ffffff88";c.beginPath();c.moveTo(x+dx-1,y-2);c.lineTo(x+dx,y-h+3);c.lineTo(x+dx+0.6,y-2);c.fill()}
+      c.fillStyle=`rgba(180,160,255,${0.15+Math.sin(t*2.4)*0.1})`;c.beginPath();c.arc(x,y-10,18,0,7);c.fill();break;
+    case"well":shadowOval(c,x,y,13,4,.3);c.fillStyle="#8a7c66";c.beginPath();c.ellipse(x,y-4,12,5,0,0,7);c.fill();c.fillStyle="#2f5f8a";c.beginPath();c.ellipse(x,y-5,8.5,3.2,0,0,7);c.fill();c.fillStyle="#a89a82";c.fillRect(x-12,y-6,24,4);
+      c.strokeStyle="#6b4c30";c.lineWidth=2;c.beginPath();c.moveTo(x-10,y-6);c.lineTo(x-10,y-24);c.lineTo(x+10,y-24);c.lineTo(x+10,y-6);c.stroke();c.fillStyle="#c4523f";c.beginPath();c.moveTo(x-14,y-23);c.lineTo(x,y-31);c.lineTo(x+14,y-23);c.closePath();c.fill();
+      c.fillStyle="#ffd24a";c.beginPath();c.arc(x+3,y-5+Math.sin(t*3)*0.4,1,0,7);c.fill();break;
+    case"mushring":{const glow=nightLevel()>0.5||new Date().getMinutes()%10<3;for(let i=0;i<9;i++){const a=i/9*Math.PI*2,mx=x+Math.cos(a)*14,my=y-4+Math.sin(a)*6;c.fillStyle="#f3eadb";c.fillRect(mx-0.8,my-3,1.6,3);c.fillStyle=glow?"#c9b6ff":"#e0463c";c.beginPath();c.ellipse(mx,my-3,3,2,0,Math.PI,0);c.fill();
+      if(glow){c.fillStyle=`rgba(200,180,255,${0.3+Math.sin(t*3+i)*0.2})`;c.beginPath();c.arc(mx,my-3,4,0,7);c.fill()}}break}
+    case"oldtree":shadowOval(c,x,y,22,6,.35);c.fillStyle="#6b4c30";c.beginPath();c.moveTo(x-9,y);c.quadraticCurveTo(x-7,y-20,x-4,y-30);c.lineTo(x+4,y-30);c.quadraticCurveTo(x+7,y-20,x+9,y);c.closePath();c.fill();c.fillStyle="#2a1a10";c.beginPath();c.ellipse(x,y-12,3.2,4.5,0,0,7);c.fill();
+      for(const [dx,dy,r,col] of [[-12,-36,13,"#3f8a4a"],[10,-38,12,"#3f8a4a"],[0,-48,15,"#4fa05a"],[-4,-40,10,"#5cb866"]]){c.fillStyle=col;c.beginPath();c.arc(x+dx+Math.sin(t*0.8+dx)*0.6,y+dy,r,0,7);c.fill()}
+      c.fillStyle=`rgba(255,240,150,${0.5+Math.sin(t*2)*0.3})`;for(const [dx,dy] of [[-8,-44],[9,-34],[3,-54]]){c.beginPath();c.arc(x+dx,y+dy,0.9,0,7);c.fill()}break;
+    case"catshrine":shadowOval(c,x,y,11,3.5,.3);c.fillStyle="#c4523f";c.fillRect(x-11,y-26,22,3);c.fillRect(x-9,y-23,2.5,23);c.fillRect(x+6.5,y-23,2.5,23);c.fillRect(x-12,y-29,24,2.5);
+      c.fillStyle="#f6e7c8";c.beginPath();c.ellipse(x,y-6,5,5,0,0,7);c.fill();c.beginPath();c.moveTo(x-4.5,y-9);c.lineTo(x-3,y-14);c.lineTo(x-1,y-10);c.fill();c.beginPath();c.moveTo(x+4.5,y-9);c.lineTo(x+3,y-14);c.lineTo(x+1,y-10);c.fill();
+      c.fillStyle="#3a2a1a";c.fillRect(x-2.5,y-7,1.2,1.2);c.fillRect(x+1.3,y-7,1.2,1.2);c.save();c.translate(x+5,y-8);c.rotate(Math.sin(t*4)*0.5-0.6);c.fillStyle="#f6e7c8";c.fillRect(0,-1,4,2);c.restore();break;
+    case"rainbow":{const cols=["#ff6b6b","#ffa94d","#ffe066","#69db7c","#4dabf7","#9775fa"];c.save();c.globalAlpha=0.75;cols.forEach((col,i)=>{c.strokeStyle=col;c.lineWidth=2.2;c.beginPath();c.arc(x,y,30-i*2.2,Math.PI,0);c.stroke()});c.restore();c.fillStyle="#fff";c.beginPath();c.arc(x-30,y,4,0,7);c.arc(x+30,y,4,0,7);c.fill();break}
+    case"cave":shadowOval(c,x,y,20,6,.4);c.fillStyle="#6d6a66";c.beginPath();c.moveTo(x-22,y);c.quadraticCurveTo(x-20,y-30,x,y-34);c.quadraticCurveTo(x+20,y-30,x+22,y);c.closePath();c.fill();c.strokeStyle="#4a4744";c.lineWidth=1.2;c.stroke();
+      c.fillStyle="#141018";c.beginPath();c.moveTo(x-11,y);c.quadraticCurveTo(x-11,y-20,x,y-22);c.quadraticCurveTo(x+11,y-20,x+11,y);c.closePath();c.fill();
+      c.fillStyle="#8a8680";for(const [dx,dy,r] of [[-15,-22,3],[12,-26,2.6],[-6,-31,2.2],[17,-10,2.4]]){c.beginPath();c.arc(x+dx,y+dy,r,0,7);c.fill()}
+      c.fillStyle=`rgba(140,220,255,${0.3+Math.sin(t*2)*0.2})`;c.beginPath();c.arc(x-4,y-8,1.2,0,7);c.arc(x+5,y-12,1,0,7);c.fill();break;
+    case"spring":c.fillStyle="#bfe6ff";c.beginPath();c.ellipse(x,y-3,13,5,0,0,7);c.fill();c.strokeStyle="#8a7c66";c.lineWidth=2;c.stroke();for(let i=0;i<4;i++){const a=(t*1.2+i/4)%1;c.fillStyle=`rgba(255,255,255,${1-a})`;c.beginPath();c.arc(x+Math.sin(i*2)*4,y-4-a*14,1.4,0,7);c.fill()}
+      c.fillStyle="#ff8fb8";c.beginPath();c.arc(x+9,y-4,1.6,0,7);c.fill();break;
+    case"sign":c.fillStyle="#6b4c30";c.fillRect(x-1.2,y-18,2.4,18);c.fillStyle="#c79a52";c.beginPath();c.moveTo(x-10,y-20);c.lineTo(x+8,y-20);c.lineTo(x+12,y-16);c.lineTo(x+8,y-12);c.lineTo(x-10,y-12);c.closePath();c.fill();c.strokeStyle="#6b4c30";c.lineWidth=0.8;c.stroke();break;
+  }}
+{const _db=drawBots;drawBots=function(ents,t,inView){_db(ents,t,inView);if(S.phase!=="game")return;
+  for(const p of poisNear(S.me.x,S.me.y,1)){if(!inView(p.x,p.y))continue;const d=Math.hypot(p.x-S.me.x,p.y-S.me.y);if(d<5*TS)discover(p);
+    ents.push({y:p.y,draw:()=>drawPoi(ctx,p,t),lab:()=>{if(d<1.6*TS&&!S.dialog&&!S.modalOpen)label(ctx,`E  ${POI_TYPES[p.type].icon} ${POI_TYPES[p.type].n}`,p.x,p.y-(p.type==="oldtree"?66:p.type==="cave"||p.type==="statue"?44:30),"#3a2a00","#ffd24a")}})}}}
+function nearestPoi(){let best=null,bd=1.6*TS;for(const p of poisNear(S.me.x,S.me.y,1)){const d=Math.hypot(p.x-S.me.x,p.y-S.me.y);if(d<bd){bd=d;best=p}}return best}
+{const _it=interact;interact=function(){if(S.phase==="game"&&!S.modalOpen&&!S.menuOpen&&!S.dialog&&!S.room&&!S.battle){const p=nearestPoi();if(p){const n=nearest();if(!n||n.type==="fountain"){poiInteract(p);return}}}return _it()}}
+/* map shows what you found */
+{const _rm=renderMap;renderMap=function(){_rm();const r=wmc.getBoundingClientRect(),w=r.width,h=r.height,s=WM.scale,tx0=WM.cx-w/2/s,ty0=WM.cy-h/2/s,c=wctx;
+  c.setTransform(DPR,0,0,DPR,0,0);c.textAlign="center";c.textBaseline="middle";
+  for(const [id,f] of Object.entries(foundMap())){const x=(f.x/TS-tx0)*s,y=(f.y/TS-ty0)*s;if(x<-20||y<-20||x>w+20||y>h+20)continue;c.fillStyle="rgba(255,255,255,.85)";c.beginPath();c.arc(x,y,9,0,7);c.fill();c.font="12px sans-serif";c.fillText((POI_TYPES[f.type]||{}).icon||"✨",x,y+1)}
+  MAPHITS.length=0;for(const d of flyDestinations()){const x=(d.x/TS-tx0)*s,y=(d.y/TS-ty0)*s;MAPHITS.push({x,y,d})}}}
+const MAPHITS=[];
+/* ---------- 5. flying: pick a place you've been on the map ---------- */
+const FLYER_SP=new Set(["nightwing","windy","cloupy","fluri","nabi","draco","b_solphoenix","ignidra","b_voltrion"]);
+function flyer(){return S.profile.party.find(m=>m.hp>0&&m.lv>=10&&(FLYER_SP.has(m.sp)||FLYER_SP.has(artKindOf(m.sp))||["wind","dragon"].includes(SPECIES[m.sp].type)))}
+function flyDestinations(){const p=S.profile,out=[{label:"🏠 시작 마을",x:SPAWN.x,y:SPAWN.y}];
+  for(const g of GYMS)if(p.badges.includes(g.id)||(p.regions||[]).includes("gym:"+g.id))out.push({label:`🏟️ ${g.name}`,x:(g.tx+0.5)*TS,y:(g.ty+6)*TS});
+  for(const [id,f] of Object.entries(foundMap()))if(POI_TYPES[f.type])out.push({label:`${POI_TYPES[f.type].icon} ${POI_TYPES[f.type].n}`,x:f.x,y:f.y+TS*1.5});
+  if(p.legendFound)out.push({label:"🌋 전설의 화산 입구",x:(LEGEND.tx+0.5)*TS,y:(LEGEND.ty+16)*TS});return out}
+function flyTo(d){const f=flyer();if(!f){toast("날 수 있는 몬스터(바람·드래곤 타입이나 날개 달린 몬스터, Lv10 이상)가 팀에 있어야 해요");return false}
+  if(S.battle||S.room)return false;if(typeof closeMap==="function"&&S.mapOpen)closeMap();
+  let el=$("flyfx");if(!el){el=document.createElement("div");el.id="flyfx";document.body.appendChild(el)}el.textContent=`🪽 ${SPECIES[f.sp].name}를 타고 ${d.label}(으)로!`;el.className="";void el.offsetWidth;el.className="on";
+  setTimeout(()=>{let tx=Math.floor(d.x/TS),ty=Math.floor(d.y/TS),spot=nearestWalk(tx,ty,8)||[tx,ty];S.me.x=(spot[0]+0.5)*TS;S.me.y=(spot[1]+0.6)*TS;S.comp.x=S.me.x;S.comp.y=S.me.y+14;S.ride=null;
+    S.encounterCool=Math.max(S.encounterCool||0,Date.now()+3000);S.movedSinceSave=true;try{netSendMove(true)}catch(e){};try{mindObserve("fly",`${d.label}(으)로 날아감`,1)}catch(e){}},650);
+  setTimeout(()=>{el.className=""},1600);return true}
+{ // map: fly button + clickable places
+  const hd=$("wmap").querySelector("header"),b=document.createElement("button");b.type="button";b.className="btn";b.id="fly-btn";b.textContent="🪽 날아가기";b.style.cssText="padding:8px 14px;font-size:15px";hd.lastChild.insertBefore(b,hd.lastChild.firstChild);
+  const list=document.createElement("div");list.id="flylist";list.hidden=true;$("wmap").appendChild(list);
+  b.onclick=()=>{if(!list.hidden){list.hidden=true;return}const f=flyer();list.textContent="";
+    const h=document.createElement("div");h.className="fl-h";h.textContent=f?`🪽 ${SPECIES[f.sp].name}를 타고 가 본 곳으로 한 번에 이동`:"날 수 있는 몬스터(바람·드래곤, 날개 달린 몬스터 Lv10+)가 있어야 해요";list.appendChild(h);
+    for(const d of flyDestinations()){const x=document.createElement("button");x.type="button";x.textContent=d.label;x.disabled=!f;x.onclick=()=>{list.hidden=true;flyTo(d)};list.appendChild(x)}list.hidden=false};
+  let down=null;wmc.addEventListener("pointerdown",e=>{down=[e.clientX,e.clientY]});wmc.addEventListener("pointerup",e=>{if(!down||Math.hypot(e.clientX-down[0],e.clientY-down[1])>6)return;const r=wmc.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top;
+    const hit=MAPHITS.find(h=>Math.hypot(h.x-mx,h.y-my)<14);if(hit&&flyer()){xprompt(`<b>🪽 날아갈까요?</b><span>${hit.d.label}</span>`,[["날아가기",()=>{xclose();flyTo(hit.d)}],["취소",xclose,"ghost"]])}})}
+/* ---------- 6. riding: water (surf), ice (skate), land mounts ---------- */
+S.ride=null;const RIDEQ={kind:null,no:0};
+const canSurf=()=>S.profile.party.find(m=>m.hp>0&&m.lv>=8&&SPECIES[m.sp].type==="water");
+const canSkate=()=>S.profile.party.find(m=>m.hp>0&&m.lv>=8&&SPECIES[m.sp].type==="ice");
+const canMount=()=>S.profile.party.find(m=>m.hp>0&&m.lv>=18&&stageOf(m.sp)>=2&&!["water","wind"].includes(SPECIES[m.sp].type)&&!SPECIES[m.sp].bossOnly);
+{const _bl=blocked;blocked=function(x,y){if(S.ride&&(S.ride.kind==="surf"||S.ride.kind==="ice")&&!S.room){
+    for(const [px,py] of [[x-8,y-4],[x+8,y-4],[x-8,y+3],[x+8,y+3]]){const tx=Math.floor(px/TS),ty=Math.floor(py/TS),t=tileAt(tx,ty);if(t===T.WATER)continue;if(SOLID.has(t))return true}return false}
+  return _bl(x,y)}}
+function aheadTile(){const d=S.me.dir,v=[[0,1],[-1,0],[1,0],[0,-1]][d];return[Math.floor((S.me.x+v[0]*20)/TS),Math.floor((S.me.y-2+v[1]*20)/TS)]}
+let pushT=0;
+function rideWatch(dt){
+  if(S.phase!=="game"||S.room||S.battle)return;const m=S.me,tx=Math.floor(m.x/TS),ty=Math.floor((m.y-2)/TS);
+  if(S.ride&&(S.ride.kind==="surf"||S.ride.kind==="ice")){if(tileAt(tx,ty)!==T.WATER&&!blockedRaw(m.x,m.y)){toast(S.ride.kind==="surf"?"🏝️ 육지에 내렸어요":"❄️ 얼음에서 내려왔어요");S.ride=null}return}
+  if(RIDEQ.kind||ENC.w||Date.now()<RIDEQ.no||S.dialog||S.modalOpen)return;
+  const [ax,ay]=aheadTile();
+  if(m.moving&&tileAt(ax,ay)===T.WATER){pushT+=dt;if(pushT>0.35){pushT=0;const snow=biomeAt(ax,ay)==="snow",sk=snow&&canSkate(),sf=canSurf();
+      if(sk||sf){RIDEQ.kind=sk?"ice":"surf";RIDEQ.mon=sk||sf;const s=SPECIES[RIDEQ.mon.sp];
+        xprompt(sk?`<b>❄️ 얼음 위를 달리시겠습니까?</b><span>${s.name}가 얼음을 깔아 줄 수 있어요</span><small><kbd>F</kbd> 타기 · <kbd>Esc</kbd> 아니요</small>`:`<b>🌊 물을 타시겠습니까?</b><span>${s.name}를 타고 물 위를 건널 수 있어요</span><small><kbd>F</kbd> 타기 · <kbd>Esc</kbd> 아니요</small>`,[["타기 (F)",rideConfirm],["아니요",()=>{RIDEQ.kind=null;RIDEQ.no=Date.now()+6000;xclose()},"ghost"]])}
+      else if(!rideWatch.hinted){rideWatch.hinted=1;toast("물 타입 몬스터(Lv8+)가 있으면 물 위를 탈 수 있어요. 설원에선 얼음 타입도!")}}}else pushT=0;
+}
+function blockedRaw(x,y){const r=S.ride;S.ride=null;try{return blocked(x,y)}finally{S.ride=r}}
+function rideConfirm(){const k=RIDEQ.kind,mon=RIDEQ.mon;RIDEQ.kind=null;xclose();if(!k||!mon)return;
+  S.ride={kind:k,sp:mon.sp,shiny:mon.shiny,useComp:true};const [ax,ay]=aheadTile();S.me.x=(ax+0.5)*TS;S.me.y=(ay+0.6)*TS;
+  toast(k==="surf"?`🌊 ${SPECIES[mon.sp].name}를 타고 물 위로!`:`❄️ ${SPECIES[mon.sp].name}가 얼음길을 만들어요!`);try{mindObserve("ride",k,1)}catch(e){}}
+function toggleLandRide(){if(S.room||S.phase!=="game")return;if(S.ride&&S.ride.kind==="land"){S.ride=null;toast("내렸어요");return}
+  if(S.ride)return;const m=canMount();if(!m){toast("Lv18 이상의 2·3단계 진화 몬스터(물·바람 타입 제외)가 있으면 V로 타고 다닐 수 있어요");return}
+  S.ride={kind:"land",sp:m.sp,shiny:m.shiny,useComp:true};toast(`🐾 ${SPECIES[m.sp].name}를 타고 달려요! (속도 1.6배 · V로 내리기)`)}
+{const _u=update;update=function(dt){const x0=S.me?S.me.x:0,y0=S.me?S.me.y:0;_u(dt);if(S.phase!=="game"||!S.me||S.room||S.battle)return;
+  try{rideWatch(dt)}catch(e){}
+  const r=S.ride;if(r&&S.me.moving){const mul=r.kind==="land"?1.6:r.kind==="ice"?1.45:1.2,dx=(S.me.x-x0)*(mul-1),dy=(S.me.y-y0)*(mul-1);
+    if(Math.hypot(dx,dy)<40){if(!blocked(S.me.x+dx,S.me.y))S.me.x+=dx;if(!blocked(S.me.x,S.me.y+dy))S.me.y+=dy}}}}
+function drawRider(c,t){const r=S.ride,m=S.me,bob=m.moving?Math.abs(Math.sin(t*(r.kind==="land"?14:6)))*2:Math.sin(t*2)*0.8;
+  if(r.kind==="surf"){for(let i=0;i<3;i++){const a=(t*0.9+i/3)%1;c.strokeStyle=`rgba(255,255,255,${0.6*(1-a)})`;c.lineWidth=1.2;c.beginPath();c.ellipse(m.x,m.y+2,10+a*14,3+a*4,0,0,7);c.stroke()}}
+  if(r.kind==="ice"){c.fillStyle="rgba(220,245,255,.85)";c.beginPath();c.ellipse(m.x,m.y+2,18,6,0,0,7);c.fill();c.strokeStyle="rgba(150,210,240,.9)";c.lineWidth=1;c.stroke()}
+  const dir=m.dir===3?3:m.dir===0?0:m.dir;
+  drawMon(c,r.sp,m.x,m.y+4+(r.kind==="surf"?2:0),t,dir,m.moving,1.25,r.shiny);
+  drawTrainer(c,m.x,m.y-12-bob,t,m.dir,false,myLook(),false)}
+/* ---------- 7. caves: their own monsters ---------- */
+const CAVE_SPECIES={
+  c_cavelit:{name:"케이브릿",type:"dark",base:{hp:55,atk:62,def:48,spa:70,sdf:55,spe:85},desc:"동굴 천장에 거꾸로 매달려 사는 작은 박쥐. 빛을 보면 눈이 반짝인다."},
+  c_crysnail:{name:"크리스네일",type:"rock",base:{hp:70,atk:50,def:95,spa:65,sdf:80,spe:25},desc:"등껍질이 수정으로 된 달팽이. 수백 년 동안 같은 동굴을 기어 다닌다."},
+  c_lumishroom:{name:"루미쉬룸",type:"fairy",base:{hp:65,atk:45,def:60,spa:80,sdf:85,spe:40},desc:"어두운 동굴을 밝히는 빛버섯 요정. 지친 탐험가 곁에 모여든다."},
+  c_mogul:{name:"모굴",type:"ground",base:{hp:75,atk:80,def:60,spa:40,sdf:50,spe:55},desc:"동굴을 파며 사는 두더지. 땅속 보물을 귀신같이 찾는다."},
+};
+for(const [id,b] of Object.entries(CAVE_SPECIES)){SPECIES[id]=Object.assign({id,xp:90,stage:1,line:id,evo:null,evoLv:null,caveOnly:true,hex:TYPES[b.type].color,sig:"tackle",learn:makeLearnset(b.type,"tackle")},b);if(!DEX_ORDER.includes(id))DEX_ORDER.push(id);SPECIES[id].no=DEX_ORDER.indexOf(id)+1}
+{const _h=habitatOf;habitatOf=function(sp){if(SPECIES[sp]&&SPECIES[sp].caveOnly)return"동굴 속에서만 — 지도 곳곳의 🕳️ 동굴 입구로 들어가 보세요";return _h(sp)}}
+NEW_DRAW.c_cavelit=(c,x,y,t,dir,hop)=>{const by=y-12-Math.abs(Math.sin(t*8))*2,fl=Math.sin(t*14)*0.5;shadowOval(c,x,y,7,2.5,.25);
+  for(const s of [-1,1]){c.save();c.translate(x+s*4,by);c.scale(s,1);c.rotate(-0.2+fl*0.4);c.fillStyle="#4a3a6a";c.beginPath();c.moveTo(0,0);c.quadraticCurveTo(6,-8,13,-4);c.quadraticCurveTo(10,-1,11,2);c.quadraticCurveTo(7,0,6,3);c.quadraticCurveTo(3,1,0,3);c.closePath();c.fill();c.restore()}
+  c.fillStyle="#5c4a82";c.beginPath();c.arc(x,by,6,0,7);c.fill();c.beginPath();c.moveTo(x-5,by-3);c.lineTo(x-4,by-9);c.lineTo(x-1.5,by-5);c.fill();c.beginPath();c.moveTo(x+5,by-3);c.lineTo(x+4,by-9);c.lineTo(x+1.5,by-5);c.fill();
+  if(dir!==3){c.fillStyle="#ffe27a";c.beginPath();c.arc(x-2.2,by-0.5,1.3,0,7);c.arc(x+2.2,by-0.5,1.3,0,7);c.fill();c.fillStyle="#fff";c.fillRect(x-1.2,by+2.5,0.9,1.2);c.fillRect(x+0.4,by+2.5,0.9,1.2)}};
+NEW_DRAW.c_crysnail=(c,x,y,t,dir,hop)=>{const by=y-2,sl=Math.sin(t*2)*1;shadowOval(c,x,y,11,3,.28);const f=dir===2?-1:1;
+  c.fillStyle="#cfc6b4";c.beginPath();c.ellipse(x-f*1+sl*0.3,by-2,11,3.5,0,0,7);c.fill();c.beginPath();c.ellipse(x-f*8,by-6,3.5,4,0,0,7);c.fill();
+  c.strokeStyle="#cfc6b4";c.lineWidth=1.2;c.beginPath();c.moveTo(x-f*9,by-9);c.lineTo(x-f*10,by-14);c.moveTo(x-f*7,by-9);c.lineTo(x-f*6,by-14);c.stroke();c.fillStyle="#3a2a1a";c.beginPath();c.arc(x-f*10,by-14,0.9,0,7);c.arc(x-f*6,by-14,0.9,0,7);c.fill();
+  for(const [dx,h,col] of [[2,13,"#9b7bff"],[6,10,"#7fd6f0"],[-1,9,"#c9b6ff"],[9,7,"#bfe6ff"]]){c.fillStyle=col;c.beginPath();c.moveTo(x+f*dx-3,by-4);c.lineTo(x+f*dx,by-4-h);c.lineTo(x+f*dx+3,by-4);c.closePath();c.fill();c.fillStyle="#ffffff88";c.beginPath();c.moveTo(x+f*dx-0.8,by-5);c.lineTo(x+f*dx,by-3-h);c.lineTo(x+f*dx+0.5,by-5);c.fill()}};
+NEW_DRAW.c_lumishroom=(c,x,y,t,dir,hop)=>{const by=y-hop,gl=0.5+Math.sin(t*3)*0.3;shadowOval(c,x,y,8,2.5,.25);
+  const g=c.createRadialGradient(x,by-10,1,x,by-10,16);g.addColorStop(0,`rgba(180,255,220,${0.45*gl})`);g.addColorStop(1,"rgba(180,255,220,0)");c.fillStyle=g;c.beginPath();c.arc(x,by-10,16,0,7);c.fill();
+  c.fillStyle="#f3eadb";c.beginPath();c.roundRect(x-4,by-9,8,9,3);c.fill();c.fillStyle="#7fe0c0";c.beginPath();c.ellipse(x,by-10,10,7,0,Math.PI,0);c.fill();c.fillStyle="#d8fff0";for(const [dx,dy] of [[-5,-13],[2,-15],[5,-11]]){c.beginPath();c.arc(x+dx,by+dy,1.4,0,7);c.fill()}
+  if(dir!==3){c.fillStyle="#2a3a34";c.beginPath();c.arc(x-1.8,by-5,0.9,0,7);c.arc(x+1.8,by-5,0.9,0,7);c.fill();c.fillStyle="#ffb0c8";c.beginPath();c.arc(x-3,by-3.6,1,0,7);c.arc(x+3,by-3.6,1,0,7);c.fill()}};
+NEW_DRAW.c_mogul=(c,x,y,t,dir,hop)=>{const by=y-hop*0.6;shadowOval(c,x,y,9,3,.28);c.fillStyle="#7a5a44";c.beginPath();c.ellipse(x,by-7,9,7.5,0,0,7);c.fill();c.fillStyle="#f2c4a8";c.beginPath();c.ellipse(x,by-4,4.5,3,0,0,7);c.fill();
+  c.fillStyle="#ff8fa0";c.beginPath();c.arc(x,by-6,1.3,0,7);c.fill();if(dir!==3){c.fillStyle="#2a1a10";c.fillRect(x-3.8,by-9.5,1.4,1);c.fillRect(x+2.4,by-9.5,1.4,1)}
+  c.fillStyle="#f2c4a8";for(const s of [-1,1]){c.beginPath();c.ellipse(x+s*8,by-3,2.8,1.8,s*0.4,0,7);c.fill();c.strokeStyle="#fff";c.lineWidth=0.6;c.beginPath();c.moveTo(x+s*9,by-2);c.lineTo(x+s*10.5,by-0.5);c.stroke()}};
+function caveLayout(id){const W=34,H=26,g=[];let seed=0;for(const ch of id)seed=seed*31+ch.charCodeAt(0)|0;const r=(i,j,k)=>hash(i,j,seed+k);
+  for(let j=0;j<H;j++){g.push([]);for(let i=0;i<W;i++)g[j].push(i<1||j<3||i>=W-1||j>=H-1?1:r(i,j,1)<0.43?1:0)}
+  for(let it=0;it<4;it++){const n=g.map(row=>row.slice());for(let j=1;j<H-1;j++)for(let i=1;i<W-1;i++){let c=0;for(let b=-1;b<=1;b++)for(let a=-1;a<=1;a++)c+=g[j+b][i+a];n[j][i]=c>=5?1:0}for(let j=0;j<H;j++)g[j]=n[j]}
+  const cx=Math.floor(W/2);for(let j=H-6;j<H;j++)for(let i=cx-2;i<=cx+2;i++)g[j][i]=0; // entrance hall
+  for(let j=H-1;j>=H-1;j--)for(let i=0;i<W;i++)if(Math.abs(i-cx)>1)g[j][i]=1;
+  // keep only the part connected to the entrance
+  const seen=new Set([cx+","+(H-2)]),q=[[cx,H-2]];while(q.length){const [x,y]=q.pop();for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){const nx=x+dx,ny=y+dy,k=nx+","+ny;if(nx<0||ny<0||nx>=W||ny>=H||seen.has(k)||g[ny][nx])continue;seen.add(k);q.push([nx,ny])}}
+  let far=[cx,H-2],fd=0;for(let j=0;j<H;j++)for(let i=0;i<W;i++){if(!g[j][i]&&!seen.has(i+","+j))g[j][i]=1;if(seen.has(i+","+j)){const d=Math.abs(i-cx)+Math.abs(j-(H-2));if(d>fd){fd=d;far=[i,j]}}}
+  return{W,H,g,far,open:seen.size}}
+function enterCave(p){const kind="cave_"+p.id;
+  if(!ROOMS[kind]){const L=caveLayout(p.id),solids=[];for(let j=0;j<L.H;j++){let i=0;while(i<L.W){if(L.g[j][i]&&j<L.H-1){let e=i;while(e+1<L.W&&L.g[j][e+1])e++;solids.push([i,j,e+1,j+1]);i=e+1}else i++}}
+    const crystals=[];for(let j=1;j<L.H-1;j++)for(let i=1;i<L.W-1;i++)if(!L.g[j][i]&&L.g[j-1][i]&&hash(i,j,77)<0.12)crystals.push([i,j]);
+    ROOMS[kind]={name:`${BIOME_NAME[p.bio]||""} 동굴`,W:L.W,H:L.H,solids,cave:p,layout:L,npc:null,
+      acts:[{x:(L.far[0]+0.5)*RT,y:(L.far[1]+0.8)*RT,act:"chest",label:"E  보물상자"}],
+      bg:(c,w,h)=>{c.fillStyle="#1d1822";c.fillRect(0,0,w,h);for(let j=0;j<L.H;j++)for(let i=0;i<L.W;i++){const x=i*RT,y=j*RT;
+        if(L.g[j][i]){c.fillStyle=hash(i,j,5)<0.5?"#3f3846":"#4a4252";c.fillRect(x,y,RT,RT);if(j+1<L.H&&!L.g[j+1][i]){c.fillStyle="#2a2430";c.fillRect(x,y+RT-6,RT,6);c.fillStyle="#5a5262";c.fillRect(x,y,RT,2)}}
+        else{c.fillStyle=hash(i,j,6)<0.5?"#7a6c60":"#857566";c.fillRect(x,y,RT,RT);if(hash(i,j,7)<0.2){c.fillStyle="#6c6056";c.beginPath();c.arc(x+hash(i,j,8)*RT,y+hash(i,j,9)*RT,2+hash(i,j,10)*2,0,7);c.fill()}}}},
+      props:[...crystals.map(([i,j])=>({y:(j+0.3)*RT,draw:c=>{const x=(i+0.5)*RT,y=(j+0.2)*RT,tt=S.t;c.fillStyle=`rgba(150,220,255,${0.25+Math.sin(tt*2+i)*0.12})`;c.beginPath();c.arc(x,y,14,0,7);c.fill();
+          for(const [dx,h,col] of [[-4,10,"#7fd6f0"],[0,15,"#9b7bff"],[4,9,"#c9b6ff"]]){c.fillStyle=col;c.beginPath();c.moveTo(x+dx-2.5,y+4);c.lineTo(x+dx,y+4-h);c.lineTo(x+dx+2.5,y+4);c.closePath();c.fill()}}})),
+        {y:(L.far[1]+0.8)*RT,draw:c=>{const x=(L.far[0]+0.5)*RT,y=(L.far[1]+0.8)*RT,opened=(foundMap()[p.id]||{}).u_chest&&Date.now()-(foundMap()[p.id]||{}).u_chest<86400000;c.fillStyle="#8a5a2a";c.beginPath();c.roundRect(x-9,y-12,18,12,2);c.fill();c.fillStyle=opened?"#5a3a1a":"#b07a3a";c.beginPath();c.roundRect(x-9,y-16,18,6,3);c.fill();c.fillStyle="#ffd24a";c.fillRect(x-2,y-11,4,4);if(!opened){c.fillStyle=`rgba(255,230,140,${0.3+Math.sin(S.t*3)*0.2})`;c.beginPath();c.arc(x,y-8,14,0,7);c.fill()}}},
+        {y:1e9,draw:c=>{const m=S.room.me,g=c.createRadialGradient(m.x,m.y-10,70,m.x,m.y-10,300);g.addColorStop(0,"rgba(5,3,10,0)");g.addColorStop(1,"rgba(5,3,10,.72)");c.fillStyle=g;c.fillRect(-20,-20,L.W*RT+40,L.H*RT+40)}}]}}
+  enterRoom(kind,{x:p.x,y:p.y+TS});S.caveSteps=0;try{mindObserve("cave","동굴 탐험 시작",2)}catch(e){}
+  toast("🕳️ 동굴에 들어왔어요 — 여기에만 사는 몬스터가 있어요. 아래 입구로 나갈 수 있어요")}
+{const _rb=roomBlocked;roomBlocked=function(x,y){const R=ROOMS[S.room.kind];if(R&&R.cave){const W=R.W*RT,H=R.H*RT;if(y>H-6)return Math.abs(x-W/2)>40;
+    for(const [ox,oy] of [[-7,-3],[7,-3],[-7,4],[7,4]]){const i=Math.floor((x+ox)/RT),j=Math.floor((y+oy)/RT);if(j>=0&&j<R.H&&i>=0&&i<R.W&&R.layout.g[j][i])return true}return x<4||x>W-4}return _rb(x,y)}}
+{const _ru=roomUpdate;roomUpdate=function(dt){const r=S.room,m=r&&r.me,x0=m&&m.x,y0=m&&m.y;_ru(dt);if(!S.room)return;const R=ROOMS[S.room.kind];
+  if(R&&R.cave&&!S.battle&&!ENC.w&&!S.dialog&&!S.modalOpen){S.caveSteps=(S.caveSteps||0)+Math.hypot(m.x-x0,m.y-y0);if(S.caveSteps>260+hash(Math.floor(S.t),3,1)*500){S.caveSteps=0;
+    const ids=Object.keys(CAVE_SPECIES),sp=ids[Math.floor(Math.random()*ids.length)],lv=Math.max(4,Math.min(MAX_LV,levelAt(R.cave.tx,R.cave.ty)+Math.floor(Math.random()*5)-1));
+    askEncounter({free:true,id:"cv_"+R.cave.id+"_"+Date.now(),sp,lv,x:S.me.x,y:S.me.y,shiny:Math.random()<1/128})}}}}
+{const _ri=roomInteract;roomInteract=function(){const R=ROOMS[S.room.kind];if(R&&R.cave){const n=roomNearest();if(n&&n.act==="chest"){const p=R.cave;
+    if(poiOnce(p,"chest",86400000)){const lv=levelAt(p.tx,p.ty),g=300+lv*20;addGold(g);bagAdd(lv>30?"hyperball":"superball",2);if(Math.random()<0.3)bagAdd("candy",1);saveProfile();toast(`📦 보물상자! ${g}G와 볼을 얻었어요`)}else toast("📦 상자는 비어 있어요. 내일 다시 채워져요");return}}return _ri()}}
+
+/* =====================================================================
+   🧠 세계의 마음 — 스스로 관찰하고, 돌아보고, 무엇을 더할지 정하고, 해 보고, 확인하는 순환
+   공개 연구들의 구조를 토큰 없이 규칙으로 옮겼어요:
+     · Generative Agents(2023)의 "기억 흐름 → 성찰 → 계획"
+     · Voyager(2023)의 "자동 커리큘럼 → 기술 도서관 → 스스로 검증 후 채택"
+   10분마다:
+     ① 관찰 기억에서 패턴을 찾고(성찰)  ② 할 수 있는 성장 후보를 점수 매기고(계획)
+     ③ 가상으로 먼저 해 보고(시뮬레이션)  ④ 실제로 더하고(행동)  ⑤ 정말 됐는지 확인(검증)
+     ⑥ 안 되면 왜 안 됐는지 적고 다음 후보로 — 될 때까지
+   + 아무도 없어도 세계는 10분마다 한 가지씩 자라요(모든 플레이어에게 똑같이).
+   + 모르는 질문을 받으면, 사람이 고른 답을 보고 그 말을 배워요(진짜 온라인 학습).
+   ===================================================================== */
+const MIND={mem:[],log:[],age:0,learned:{}};
+try{const s=JSON.parse(localStorage.getItem("mtw-mind")||"null");if(s){MIND.mem=s.mem||[];MIND.log=s.log||[];MIND.age=s.age|0;MIND.learned=s.learned||{}}}catch(e){}
+let mindSaveT=0;const mindSave=()=>{clearTimeout(mindSaveT);mindSaveT=setTimeout(()=>{try{localStorage.setItem("mtw-mind",JSON.stringify({mem:MIND.mem.slice(-300),log:MIND.log.slice(0,40),age:MIND.age,learned:MIND.learned}))}catch(e){}},1500)};
+function mindObserve(kind,text,imp=1,extra){const here_=S.me?{tx:Math.floor(S.me.x/TS),ty:Math.floor(S.me.y/TS),bio:S.room?"cave":biomeAt(Math.floor(S.me.x/TS),Math.floor(S.me.y/TS))}:{};
+  MIND.mem.push(Object.assign({at:Date.now(),kind,text,imp},here_,extra||{}));if(MIND.mem.length>400)MIND.mem.splice(0,MIND.mem.length-400);mindSave()}
+/* what happens in the world becomes memories */
+{const _eb=endBattle;endBattle=function(){const b=S.battle;if(b&&S.profile){const lost=!S.profile.party.some(m=>m.hp>0),foe=b.foes&&b.foes[b.fi];
+  if(lost)mindObserve("loss",`${foe?SPECIES[foe.sp].name:"상대"}에게 졌다`,4,{lv:foe&&foe.lv});else if(foe&&foe.hp<=0)mindObserve("win",`${SPECIES[foe.sp].name}를 이겼다`,1)}return _eb()}}
+{const _am=addMonster;addMonster=function(m){const r=_am(m);if(S.battle)mindObserve("catch",`${SPECIES[m.sp].name} 테이밍`,2,{sp:m.sp});return r}}
+{const _sr=showRegion;showRegion=function(n){_sr(n);try{mindObserve("region",n,0.5)}catch(e){}}}
+/* ---------- the world grows by itself every 10 minutes (same for everyone) ---------- */
+const GROW_SLOT=600000,GROW_EPOCH=Date.UTC(2026,9,7,0,0,0);
+const GROW_KINDS=["spring","sign","crystals","statue","well","mushring","flowers","oldtree","rainbow","catshrine"];
+function growthAt(k){const a=hash(k,1,9100)*Math.PI*2,ring=30+hash(k,2,9101)*260,cx=Math.round(TOWN.cx+Math.cos(a)*ring),cy=Math.round(TOWN.cy+Math.sin(a)*ring*0.8);
+  const type=GROW_KINDS[Math.floor(hash(k,3,9102)*GROW_KINDS.length)],spot=poiSpot(cx,cy);if(!spot||legendDist(spot[0],spot[1])<40)return null;
+  return{id:"grow_"+k,type,tx:spot[0],ty:spot[1],x:(spot[0]+0.5)*TS,y:(spot[1]+0.7)*TS,bio:biomeAt(spot[0],spot[1]),grown:k}}
+let growDone=-1;
+function growWorld(announce){const last=Math.min(299,Math.floor((Date.now()-GROW_EPOCH)/GROW_SLOT));if(last<0)return;
+  for(let k=growDone+1;k<=last;k++){const g=growthAt(k);if(g&&!EXTRA_POI.some(p=>p.id===g.id)){EXTRA_POI.push(g);
+    if(announce&&k===last)selfSay(`🌱 (스스로 성장) 세계가 ${dirWord(g.x-S.me.x,g.y-S.me.y)}쪽 ${Math.round(Math.hypot(g.x-S.me.x,g.y-S.me.y)/TS)}칸 너머에 새 ${POI_TYPES[g.type].icon} ${POI_TYPES[g.type].n}을(를) 만들었어요.`)}}growDone=last}
+growWorld(false);
+/* ---------- the thinking loop ---------- */
+function reflect(){
+  const now=Date.now(),recent=MIND.mem.filter(m=>now-m.at<2*3600000),cnt=k=>recent.filter(m=>m.kind===k).length,ins=[];
+  const losses=recent.filter(m=>m.kind==="loss"),byBio={};for(const l of losses)byBio[l.bio]=(byBio[l.bio]||0)+1;
+  const worstBio=Object.entries(byBio).sort((a,b)=>b[1]-a[1])[0];
+  if(worstBio&&worstBio[1]>=2)ins.push({k:"hard_area",bio:worstBio[0],n:worstBio[1],text:`${BIOME_NAME[worstBio[0]]||worstBio[0]}에서 ${worstBio[1]}번 쓰러졌다 → 그 근처가 너무 힘든 것 같다`,u:3+worstBio[1]});
+  if(losses.length>=4)ins.push({k:"many_losses",text:`최근 2시간에 ${losses.length}번 졌다 → 성장이 막혀 있다`,u:4});
+  const disc=cnt("discover");if(disc===0&&recent.length>15)ins.push({k:"bored",text:"한동안 새로 발견한 게 없다 → 탐험할 거리가 부족한 것 같다",u:3});
+  if(cnt("cave")===0&&recent.length>25)ins.push({k:"no_cave",text:"아직 동굴에 안 들어가 봤다 → 동굴을 알려 주면 좋겠다",u:2});
+  const unk=recent.filter(m=>m.kind==="unknown");if(unk.length>=2)ins.push({k:"unknown_q",text:`이해 못 한 질문이 ${unk.length}개 → 말을 더 배워야 한다`,u:2+unk.length});
+  if(WORLD.fps<30)ins.push({k:"slow",text:`화면이 느리다(${Math.round(WORLD.fps)}fps) → 가볍게 해야 한다`,u:5});
+  const g=typeof nextGym==="function"&&nextGym();if(g&&S.me){const d=Math.hypot(g.tx*TS-S.me.x,g.ty*TS-S.me.y)/TS;if(d>120&&cnt("region")>6)ins.push({k:"lost",text:`다음 체육관에서 ${Math.round(d)}칸이나 떨어져 헤매는 중 → 길잡이가 필요하다`,u:2})}
+  if(!ins.length)ins.push({k:"calm",text:"특별한 문제는 없다 → 새로운 볼거리를 하나 더해 보자",u:1});
+  return ins.sort((a,b)=>b.u-a.u)}
+const SKILLS={ // the skill library: each one knows how to try itself and how to check itself
+  hard_area:{label:"힘든 곳 근처에 회복의 샘 만들기",make:(i)=>{const l=MIND.mem.filter(m=>m.kind==="loss"&&m.bio===i.bio).pop()||{tx:Math.floor(S.me.x/TS),ty:Math.floor(S.me.y/TS)};return{type:"spring",near:[l.tx,l.ty]}}},
+  many_losses:{label:"경험치 이벤트에 세계의 한 표 던지기",vote:"xp"},
+  bored:{label:"가까운 곳에 새 이스터에그 숨기기",make:()=>{const a=Math.random()*Math.PI*2;return{type:["rainbow","catshrine","oldtree","crystals"][Math.floor(Math.random()*4)],near:[Math.floor(S.me.x/TS+Math.cos(a)*28),Math.floor(S.me.y/TS+Math.sin(a)*22)]}}},
+  no_cave:{label:"가장 가까운 동굴로 길 안내 켜기",cave:1},
+  unknown_q:{label:"모르는 질문을 배울 준비(다음에 고른 답을 학습)",learn:1},
+  slow:{label:"엔티티를 다시 만들어 가볍게",reset:1},
+  lost:{label:"플레이어 근처에 길잡이 표지판 세우기",make:()=>({type:"sign",near:[Math.floor(S.me.x/TS)+3,Math.floor(S.me.y/TS)+2]})},
+  calm:{label:"가까운 곳에 볼거리 하나 더하기",make:()=>{const a=Math.random()*Math.PI*2;return{type:GROW_KINDS[Math.floor(Math.random()*GROW_KINDS.length)],near:[Math.floor(S.me.x/TS+Math.cos(a)*24),Math.floor(S.me.y/TS+Math.sin(a)*18)]}}},
+};
+function think(reason){
+  if(S.phase!=="game"||!S.profile||!S.profile.starter||S.room)return null;
+  const entry={at:Date.now(),why:reason,think:[],options:[],sims:[],act:null,verify:null,ok:false};
+  const ins=reflect();ins.slice(0,3).forEach(i=>entry.think.push(i.text));
+  for(const i of ins){const sk=SKILLS[i.k];if(!sk)continue;entry.options.push(sk.label);
+    // simulate
+    let plan=null,simOk=false,note="";
+    if(sk.make){plan=sk.make(i);const tries=[];
+      // try the wanted spot first, then a ring of alternatives — if one fails, find out why and move on
+      for(let a=0;a<9&&!simOk;a++){const ang=a*0.785,rr=a?7+a:0,want=[Math.round(plan.near[0]+Math.cos(ang)*rr),Math.round(plan.near[1]+Math.sin(ang)*rr)],spot=poiSpot(want[0],want[1]);
+        if(!spot){tries.push("빈자리 없음");continue}
+        const near=poisNear((spot[0]+0.5)*TS,(spot[1]+0.5)*TS,0).filter(p=>Math.hypot(p.tx-spot[0],p.ty-spot[1])<7);
+        if(near.length){tries.push(`${josa(POI_TYPES[near[0].type].n,"이","가")} 너무 가까움`);continue}
+        const reach=reachSim(spot[0],spot[1],null,16,500);if(!reach.open){tries.push("막힌 곳");continue}
+        simOk=true;plan.spot=spot;note=`${tries.length?`앞의 자리 ${tries.length}곳은 안 됨(${[...new Set(tries)].join(", ")}) → `:""}(${spot[0]},${spot[1]})는 길로 이어지고 겹치는 것도 없음`}
+      if(!simOk)note=`9곳을 다 살펴봤지만 안 됨: ${[...new Set(tries)].join(", ")}`}
+    else if(sk.vote){simOk=(COOL.get(sk.vote)||0)<Date.now();note=simOk?"투표 가능":"이미 그 이벤트가 진행 중"}
+    else if(sk.cave){const c=[];for(let r=1;r<=3&&!c.length;r++)for(const p of poisNear(S.me.x,S.me.y,r))if(p.type==="cave")c.push(p);plan={cave:c[0]};simOk=!!c[0];note=simOk?`${Math.round(Math.hypot(c[0].x-S.me.x,c[0].y-S.me.y)/TS)}칸 거리의 동굴 찾음`:"근처에 동굴이 없음"}
+    else{simOk=true;note="바로 할 수 있음"}
+    entry.sims.push({opt:sk.label,ok:simOk,note});
+    if(!simOk)continue; // why not → written above, try the next idea
+    // act
+    if(sk.make){const id="mind_"+Date.now().toString(36),p={id,type:plan.type,tx:plan.spot[0],ty:plan.spot[1],x:(plan.spot[0]+0.5)*TS,y:(plan.spot[1]+0.7)*TS,bio:biomeAt(plan.spot[0],plan.spot[1]),mind:1};
+      EXTRA_POI.push(p);if(typeof WSTATE!=="undefined"){WSTATE.mindPoi=(WSTATE.mindPoi||[]).concat([p]).slice(-60);wsSave();setTimeout(wsPublish,800)}
+      entry.act=`${POI_TYPES[p.type].icon} ${POI_TYPES[p.type].n}을(를) (${p.tx},${p.ty})에 만듦`;
+      entry.ok=poisNear(p.x,p.y,0).some(q=>q.id===id)&&reachSim(p.tx,p.ty,null,16,500).open;entry.verify=entry.ok?"다시 확인: 지도에 있고 걸어서 갈 수 있음 ✅":"확인 실패 — 다음 생각 때 다른 곳에 시도"}
+    else if(sk.vote){const r=castVote(sk.vote,"world-mind");entry.act=`경험치 이벤트에 한 표 (${r.pass?"통과!":r.n+"/"+r.need})`;entry.ok=true;entry.verify="표가 기록됨 ✅";if(r.pass)startEvent("xp",{xp:1.5},20,"경험치 1.5배",{nick:"세계"})}
+    else if(sk.cave){SACT.guide(plan.cave.x,plan.cave.y+TS,"동굴 입구");entry.act="동굴 입구로 화살표 안내";entry.ok=!!S.waypoint;entry.verify=entry.ok?"화면에 화살표가 켜짐 ✅":"안내 실패"}
+    else if(sk.reset){resetEntities();entry.act="엔티티 다시 만들기";entry.ok=true;entry.verify="정리 완료 ✅"}
+    else if(sk.learn){MIND.learnReady=true;entry.act="다음에 사람이 고르는 답에서 그 말을 배우기로 함";entry.ok=true;entry.verify="학습 대기 ✅"}
+    break}
+  if(!entry.act)entry.verify="이번엔 할 수 있는 게 없었어요 — 이유는 시뮬레이션 기록에 남겼어요";
+  if(entry.ok)MIND.age++;
+  MIND.log.unshift(entry);if(MIND.log.length>40)MIND.log.length=40;mindSave();
+  if(entry.act)selfSay(`🧠 (스스로 판단) ${entry.think[0]} — 그래서 「${entry.act}」. ${entry.verify}`);
+  if(!$("world-ai").hidden)renderWorldPanel();return entry}
+let thinkSlot=Math.floor(Date.now()/GROW_SLOT);
+setInterval(()=>{if(S.phase!=="game")return;growWorld(true);const s=Math.floor(Date.now()/GROW_SLOT);if(s!==thinkSlot){thinkSlot=s;think("10분마다 하는 생각")}},15000);
+setTimeout(function first(){if(S.phase==="game"&&S.profile&&S.profile.starter)think("접속 후 첫 생각");else setTimeout(first,20000)},90000);
+{const _ms=mergeState;mergeState=function(s,q){_ms(s,q);try{for(const p of (s&&s.mindPoi)||[])if(p&&p.id&&POI_TYPES[p.type]&&!EXTRA_POI.some(x=>x.id===p.id)&&Number.isFinite(p.x)&&Number.isFinite(p.y))EXTRA_POI.push({id:String(p.id).slice(0,40),type:p.type,tx:p.tx|0,ty:p.ty|0,x:+p.x,y:+p.y,bio:String(p.bio||""),mind:1})}catch(e){}}}
+try{for(const p of (WSTATE.mindPoi||[]))if(!EXTRA_POI.some(x=>x.id===p.id))EXTRA_POI.push(p)}catch(e){}
+/* ---------- knowledge: math, science, Korean, the game ---------- */
+function calc(expr){ // safe arithmetic: numbers, + - * / ^ % ( ), 제곱근
+  let s=String(expr).replace(/곱하기|×|x(?=\s*\d)/g,"*").replace(/나누기|÷/g,"/").replace(/더하기|플러스/g,"+").replace(/빼기|마이너스/g,"-").replace(/의\s*(\d+)\s*제곱/g,"^$1").replace(/제곱근\s*(\d+(\.\d+)?)|루트\s*(\d+(\.\d+)?)/g,(m,a,b,c)=>`sqrt(${a||c})`).replace(/(\d+(\.\d+)?)\s*의\s*제곱근/g,"sqrt($1)").replace(/(\d)\s*제곱/g,"$1^2");
+  s=s.replace(/[^0-9+\-*/^%().sqrt ]/g,"").trim();if(!/\d/.test(s)||s.length>80)return null;let i=0;const peek=()=>s[i],eat=c=>{while(s[i]===" ")i++;if(s[i]===c){i++;return true}return false};
+  const num=()=>{while(s[i]===" ")i++;if(s.startsWith("sqrt",i)){i+=4;eat("(");const v=add();eat(")");return Math.sqrt(v)}if(eat("(")){const v=add();eat(")");return v}if(eat("-"))return -num();let j=i;while(/[0-9.]/.test(s[i]||""))i++;if(j===i)throw 0;return parseFloat(s.slice(j,i))};
+  const pow=()=>{let v=num();while(true){while(s[i]===" ")i++;if(s[i]==="^"){i++;v=Math.pow(v,num())}else return v}};
+  const mul=()=>{let v=pow();for(;;){if(eat("*"))v*=pow();else if(eat("/"))v/=pow();else if(eat("%"))v%=pow();else return v}};
+  function add(){let v=mul();for(;;){if(eat("+"))v+=mul();else if(eat("-"))v-=mul();else return v}}
+  try{const v=add();while(s[i]===" ")i++;if(i<s.length||!Number.isFinite(v))return null;return Math.round(v*1e9)/1e9}catch(e){return null}}
+const FACTS=[
+  ["물 끓는점 몇 도","물은 1기압에서 100°C에 끓고 0°C에 얼어요."],["빛의 속도","빛은 진공에서 초속 약 30만 km(299,792,458 m/s)로 달려요."],["지구에서 태양까지 거리","약 1억 5천만 km(1 AU)예요. 빛으로 8분 20초쯤 걸려요."],
+  ["중력 가속도","지구 표면에서 약 9.8 m/s²예요."],["광합성이 뭐야","식물이 빛 에너지로 물과 이산화탄소에서 포도당과 산소를 만드는 과정이에요."],["원자는 뭐로 되어 있어","원자핵(양성자·중성자)과 그 주위의 전자로 되어 있어요."],
+  ["DNA가 뭐야","생물의 유전 정보를 담은 이중 나선 분자예요. A·T·G·C 네 가지 염기로 정보를 적어요."],["태양계 행성 순서","수성·금성·지구·화성·목성·토성·천왕성·해왕성 순서예요."],["가장 큰 행성","목성이에요. 지구가 1,300개 넘게 들어갈 만큼 커요."],
+  ["피타고라스 정리","직각삼각형에서 빗변² = 밑변² + 높이² 예요 (a²+b²=c²)."],["원주율","π ≈ 3.14159… 원의 둘레를 지름으로 나눈 값이에요."],["소수가 뭐야","1과 자기 자신으로만 나누어떨어지는 1보다 큰 자연수예요. 2, 3, 5, 7, 11…"],
+  ["확률이 뭐야","어떤 일이 일어날 가능성을 0~1 사이 수로 나타낸 거예요. 이 게임에서 이로치는 1/256이에요."],["평균 구하는 법","모든 값을 더한 뒤 개수로 나누면 돼요."],["세종대왕","훈민정음(한글)을 만들어 1446년에 반포한 조선의 왕이에요."],
+  ["한글 자음 모음 개수","기본 자음 14개, 모음 10개, 모두 24자예요."],["되 돼 차이","'돼'는 '되어'의 줄임말이에요. '되어'로 바꿔 말이 되면 '돼', 아니면 '되'를 써요. (예: 안 돼요 ← 안 되어요)"],["안 않 차이","'안'은 '아니'의 줄임(안 가요), '않'은 '아니하'의 줄임(가지 않아요)이에요."],
+  ["낮말은 새가 듣고","'낮말은 새가 듣고 밤말은 쥐가 듣는다' — 아무도 안 듣는 것 같아도 말조심하라는 뜻이에요."],["티끌 모아 태산","작은 것도 모이면 크게 된다는 뜻이에요. 골드 모으기에도 딱이죠."],
+  ["ai가 뭐야","인공지능은 사람처럼 배우고 판단하도록 만든 컴퓨터 프로그램이에요. 저희 관리자는 이 게임 안의 규칙과 기억으로 생각해요."],["알고리즘이 뭐야","문제를 푸는 단계별 방법이에요. 예를 들어 AI 트레이너들은 A*라는 길찾기 알고리즘으로 걸어 다녀요."],
+  ["포켓몬 몇 마리","원작 포켓몬은 1000마리가 넘어요. 이 세계 도감에는 지금 "+"(게임 안에서 셈)"],["오늘 날짜","(시계를 보고 알려 드려요)"],["지금 몇 시","(시계를 보고 알려 드려요)"],
+];
+function factAnswer(t){const n=supNorm(t);if(/몇 ?시|시간/.test(n)&&/지금|몇/.test(n))return`지금은 ${new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})}이에요.`;
+  if(/날짜|며칠|오늘 ?몇/.test(n))return`오늘은 ${new Date().toLocaleDateString("ko-KR",{year:"numeric",month:"long",day:"numeric",weekday:"long"})}이에요.`;
+  if(/도감|몬스터 ?몇|몇 ?마리/.test(n))return`이 세계 도감에는 지금 ${DEX_ORDER.length}종이 있어요 (자동으로 태어난 변종 포함).`;
+  const v=vec(supFeats(t));let best=null,bs=0;for(const [q,a] of FACTS){const s=cos(v,vec(supFeats(q)));if(s>bs){bs=s;best=a}}return bs>0.28?best:null}
+intent("math","echo","계산",["3 더하기 5는","12 곱하기 7","100 나누기 4","2의 10제곱","루트 144","계산해줘","수학 문제"],(t)=>{const v=calc(t);return v==null?{text:"계산할 식을 숫자로 적어 주세요. 예: 「(12+8)*3」, 「2의 10제곱」, 「루트 144」"}:{who:"echo",text:`${t.replace(/[?=은는이야요]+$/,"").trim()} = ${v.toLocaleString("ko-KR")} 이에요. 🧮`}});
+intent("fact","echo","지식 질문",["빛의 속도가 얼마야","광합성이 뭐야","태양계 행성 순서","피타고라스 정리","되 돼 차이","세종대왕이 누구야","지금 몇 시야","오늘 날짜","원주율이 뭐야","ai가 뭐야"],(t)=>{const a=factAnswer(t);return{who:"echo",text:a||"그건 아직 배우지 못했어요. 대신 이 세계와 게임에 관한 건 뭐든 물어봐 주세요! (수학 계산, 과학 기초, 한글 맞춤법 몇 가지는 알아요)"}});
+intent("mind","lumen","세계의 생각",["요즘 무슨 생각해","무슨 생각 중이야","세계는 지금 뭐 하고 있어","성장 기록 보여줘","다음에 뭐 추가할 거야","스스로 뭐 했어"],()=>{const e=MIND.log[0];
+  return{text:`세계 나이 ${MIND.age}단계, 기억 ${MIND.mem.length}개, 스스로 만든 것 ${EXTRA_POI.filter(p=>p.mind||p.grown!=null).length}개예요.\n${e?`가장 최근 생각(${new Date(e.at).toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})}): ${e.think[0]||""}\n→ ${e.act||"할 일을 찾지 못함"} · ${e.verify||""}`:"아직 첫 생각 전이에요."}\n10분마다 다시 생각해요. 지금 바로 생각해 볼까요?`,confirm:{label:"지금 생각하기",run:()=>{const r=think("사람이 부탁함");return{ok:!!(r&&r.ok),msg:r?(r.act?`생각했어요: ${r.think[0]} → ${r.act}. ${r.verify}`:`생각해 봤지만 지금 할 수 있는 게 없었어요. ${r.sims.map(x=>x.opt+": "+x.note).join(" / ")}`):"지금은 생각할 수 없어요(동굴·실내에선 쉬어요)."}}},chips:["응 생각해 봐","아니"]}});
+SUP_KW.math=/\d\s*[+\-*/x×÷^]\s*\d|더하기|빼기|곱하기|나누기|제곱|루트|계산/;SUP_KW.mind=/생각|성장 ?기록|스스로/;SUP_KW.fact=/빛의 ?속도|광합성|행성|피타고라스|원주율|세종|맞춤법|되 ?돼|안 ?않|몇 ?시|날짜|속담/;
+/* ---------- real online learning: an unknown sentence + the answer the person picks = a new example ---------- */
+for(const [id,list] of Object.entries(MIND.learned)){const it=SUP_INTENTS.find(x=>x.id===id);if(it)for(const ex of list)if(!it.examples.includes(ex))it.examples.push(ex)}
+SUP_IDF=null;
+{const _sa=supAnswer;supAnswer=function(text){const r=_sa(text);const t=String(text||"").trim();
+  if(r&&/정확히 이해했는지 모르겠어요/.test(r.text||"")){SUP.unknown={t,at:Date.now()};mindObserve("unknown",t,2)}
+  else if(SUP.unknown&&Date.now()-SUP.unknown.at<60000&&r){const nn=z=>supNorm(z).replace(/\?/g,"").trim(),it=SUP_INTENTS.find(x=>nn(x.examples[0])===nn(t));if(it){const u=SUP.unknown.t;(MIND.learned[it.id]=MIND.learned[it.id]||[]).push(u);if(!it.examples.includes(u))it.examples.push(u);SUP_IDF=null;SUP.unknown=null;mindSave();
+    if(r.text)r.text=`(배웠어요! 앞으로 「${u}」는 「${it.label}」 뜻으로 알아들을게요)\n`+r.text;else if(r.result)r.result.msg=`(배웠어요! 「${u}」 = 「${it.label}」)\n`+r.result.msg}}
+  return r}}
+/* ---------- 5,000 harsh raters, calibrated on real store ratings ----------
+   기준: 앱스토어 상위 게임 평균 4.4~4.5, '오늘의 게임' 평균 4.52 (ASOdesk 조사).
+   그래서 "거의 완벽"(품질 0.95) ≈ 4.6 이 나오게 맞췄어요. 5.0은 모든 항목이 완벽해야 나와요. */
+function measureQuality(){
+  const fps=Math.max(0,Math.min(1,(WORLD.fps-20)/40)),err=Math.max(0,1-WORLD.errors*0.08);
+  const content=Math.min(1,(DEX_ORDER.length/180)*0.5+(Object.keys(foundMap()).length/12)*0.2+(EXTRA_POI.length/40)*0.15+0.15);
+  let acc=0;const T=[["난이도가 너무 어려워요","hard"],["다음 체육관 어디","gym"],["렉 걸려","lag"],["버블리 어디서 잡아","catch"],["팀 분석해줘","team"],["교환 어떻게 해","howto"],["2의 10제곱","math"],["빛의 속도","fact"]];
+  for(const [q,e] of T){try{if(supRoute(q).a.it.id===e)acc++}catch(x){}}
+  const ai=acc/T.length,art=Math.max(0,(WORLD.assetsOk||1)-0.05*(WORLD.artBad||[]).length),social=Math.min(1,0.75+Math.min(0.25,(S.others?S.others.size:0)*0.05+0.1));
+  const growth=Math.min(1,0.6+MIND.age*0.05);
+  return{"속도·안정성":(fps*0.6+err*0.4),"즐길 거리(콘텐츠)":content,"관리자·AI 대화":ai,"그래픽(원본 그림 보존)":art*0.92,"사람들과 함께":social,"스스로 성장하는 세계":growth}}
+function rate5000(){const Q=measureQuality(),dims=Object.keys(Q),hist=[0,0,0,0,0],why={};let sum=0;
+  for(let i=0;i<5000;i++){const r=k=>hash(i,k,9300);let ws=0,acc=0,worst=null,wv=9;
+    dims.forEach((d,k)=>{const w=0.4+r(k)*1.6;ws+=w;acc+=w*Q[d];if(Q[d]*(1.2-w*0.15)<wv){wv=Q[d]*(1.2-w*0.15);worst=d}});
+    const q=acc/ws,harsh=0.6+r(20)*1.4,stars=Math.max(1,Math.min(5,Math.round((1+4*Math.pow(q,1.15*harsh))*2)/2));
+    sum+=stars;hist[Math.min(4,Math.max(0,Math.round(stars)-1))]++;if(stars<5)why[worst]=(why[worst]||0)+1}
+  return{avg:sum/5000,hist,why,Q}}
+/* world panel: thoughts + 5,000 raters */
+{const _rw=renderWorldPanel;renderWorldPanel=function(){_rw();const body=$("wa-body");if(!body)return;
+  const box=document.createElement("div");box.className="adm mind";const el=(tag,cls,txt,par=box)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(txt!=null)e.textContent=txt;par.appendChild(e);return e};
+  el("h4",null,`🧠 세계의 생각 — 나이 ${MIND.age}단계 · 기억 ${MIND.mem.length}개 · 스스로 만든 것 ${EXTRA_POI.length}개`);
+  const b=el("button","btn ghost","지금 생각해 보기");b.type="button";b.style.cssText="padding:6px 12px;font-size:13px;margin:4px 0";b.onclick=()=>{think("패널에서 요청");renderWorldPanel()};
+  for(const e of MIND.log.slice(0,5)){const d=el("details","adm-case");el("summary",null,`${new Date(e.at).toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})} ${e.think[0]||""} → ${e.act||"보류"}`,d);
+    const st=(n,arr)=>{if(!arr||!arr.length)return;const s=el("div","adm-step",null,d);el("b",null,n,s);const ul=el("ul",null,null,s);for(const x of arr)el("li",null,typeof x==="string"?x:`${x.opt}: ${x.note} ${x.ok?"✅":"❌"}`,ul)};
+    st("① 성찰",e.think);st("② 후보",e.options);st("③ 시뮬레이션",e.sims);st("④ 행동",e.act?[e.act]:[]);st("⑤ 검증",e.verify?[e.verify]:[])}
+  const R=rate5000();el("h4",null,`⭐ 깐깐한 심사관 5,000명 — 평균 ${R.avg.toFixed(2)}점`);
+  el("p","wa-sub","기준: 실제 앱스토어 상위 게임 평균 4.4~4.5점, '오늘의 게임' 평균 4.52점에 맞춘 깐깐함. 5점은 모든 항목이 거의 완벽해야 나와요.");
+  const hist=el("div","wa-hist");R.hist.slice().reverse().forEach((n,k)=>{const r=el("div","wa-hrow",null,hist);el("span",null,`${5-k}점`,r);const bar=el("i",null,null,r);bar.style.width=Math.round(n/5000*100)+"%";el("span",null,String(n),r)});
+  const dims=el("div","wa-dims");for(const [k,v] of Object.entries(R.Q)){const r=el("div","wa-hrow",null,dims);el("span",null,k,r);const bar=el("i",null,null,r);bar.style.width=Math.round(v*100)+"%";bar.style.background=v>0.85?"#5cc65a":v>0.7?"#f0b400":"#e0463c";el("span",null,Math.round(v*100)+"",r)}
+  const top=Object.entries(R.why).sort((a,b)=>b[1]-a[1]).slice(0,3);if(top.length)el("p","wa-sub",`5점을 안 준 가장 큰 이유: ${top.map(([d,n])=>`${d}(${n}명)`).join(", ")}`);
+  body.insertBefore(box,body.children[2]||null)}}
+
+/* cue-less guesses for "지식"/"계산" fall back to the runner-up (they must hear a real cue word) */
+{const _sr=supRoute;supRoute=function(t){const r=_sr(t),n=supNorm(t);
+  if(r.a&&(r.a.it.id==="fact"&&!SUP_KW.fact.test(n)||r.a.it.id==="math"&&!SUP_KW.math.test(n)||r.a.it.id==="mind"&&!SUP_KW.mind.test(n))){const alt=r.top.find(x=>!["fact","math","mind"].includes(x.it.id));if(alt)return Object.assign({},r,{a:alt,b:r.top.find(x=>x!==alt&&x.it.id!=="fact")})}return r}}
+intent("ride","nova","타고 다니기",["몬스터 타고 다니고 싶어","탈것","라이드","타고 싶어","내리고 싶어","날아서 가고 싶어","날기"],(t)=>{
+  if(/날|비행/.test(t)){const f=flyer();return{text:f?`${SPECIES[f.sp].name}가 날 수 있어요! 지도(M)를 열고 「🪽 날아가기」를 누르면 가 본 곳으로 한 번에 날아가요.`:"날 수 있는 몬스터(바람·드래곤 타입이나 날개 달린 몬스터, Lv10 이상)가 팀에 있어야 해요."}}
+  return{action:()=>{toggleLandRide();return{ok:!!S.ride,msg:S.ride?`${SPECIES[S.ride.sp].name}를 탔어요! (V 또는 "내리고 싶어"로 내리기)`:"내렸거나, 탈 수 있는 몬스터(Lv18 이상 2·3단계, 물·바람 제외)가 없어요."}}}});
+SUP_KW.ride=/타고 ?다니|탈것|라이드|타고 ?싶|내리고|날기|날아서/;SUP_IDF=null;
 
 
 </script>
