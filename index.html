@@ -174,6 +174,24 @@ kbd{font-family:var(--display);background:#fff;border:1px solid var(--line);bord
 #party-ai[hidden],#buffs[hidden]{display:none}
 #party-ai button{font:inherit;font-size:12px;border:0;border-radius:8px;padding:3px 8px;background:var(--panel-2);color:var(--text);cursor:pointer}
 @media (max-width:640px){.bm-grid{grid-template-columns:repeat(2,1fr)}.bm-head canvas{width:64px;height:64px}}
+.adm{margin:6px 0 10px;padding:10px;border-radius:12px;background:rgba(122,79,196,.08);border:1px solid rgba(122,79,196,.25)}
+.adm h4{margin:0 0 6px}.adm-row{display:grid;gap:4px}.adm-chip{font-size:13px;padding:4px 8px;border-radius:8px;background:var(--panel-2)}
+.adm-case{margin-top:6px;font-size:13px;background:var(--panel);border-radius:8px;padding:6px 8px}.adm-case summary{cursor:pointer;font-weight:700}
+.adm-step{margin:4px 0 0 4px}.adm-step b{color:#7a4fc4}.adm-step ul{margin:2px 0 0 16px;padding:0}
+#ivpop{position:fixed;inset:0;z-index:60;background:rgba(30,25,20,.45);display:grid;place-items:center;padding:16px}
+#ivpop[hidden]{display:none}
+.ivcard{width:min(720px,100%);max-height:calc(100vh - 32px);overflow:auto;padding:14px 16px;border-radius:18px;background:var(--panel)}
+.ivtop{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-family:var(--display);font-size:20px}.ivtop .btn{padding:6px 14px;font-size:14px}
+.ivgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.ivb{background:var(--panel-2);border-radius:12px;padding:10px}
+.ivh{display:flex;gap:8px;align-items:center;margin-bottom:6px}.ivh canvas{width:48px;height:48px}.ivh div{display:grid}.ivh small{color:var(--muted)}
+.ivr{display:grid;grid-template-columns:62px 1fr 42px 40px;gap:6px;align-items:center;font-size:13px}
+.ivr i{height:8px;border-radius:5px;background:rgba(0,0,0,.08);overflow:hidden}.ivr u{display:block;height:100%;text-decoration:none}.ivr small{color:var(--muted);text-align:right}
+.ivg{font-style:normal;font-size:10px;font-weight:700;margin-left:4px;padding:0 5px;border-radius:6px;color:#fff;background:#9db3ad;vertical-align:1px}
+.ivg.gS{background:#e0a400}.ivg.gA{background:#5cb85c}.ivg.gB{background:#4a90d9}.ivg.gC{background:#8a8f98}
+.bm-team em.ivg{display:inline-block;margin:2px 0 0}
+.pc-list{display:grid;gap:6px}.pc-row{display:grid;grid-template-columns:40px 1fr auto auto;gap:8px;align-items:center;background:var(--panel-2);border-radius:10px;padding:4px 8px}
+.pc-row canvas{width:40px;height:40px}.pc-row .btn{padding:5px 10px;font-size:13px}
 @media (max-width:640px){#ev-hud{bottom:auto;top:calc(160px + env(safe-area-inset-top,0px));font-size:12px}}
 /* world AI panel */
 #world-ai{position:fixed;inset:0;z-index:23;display:grid;place-items:center;padding:16px;background:rgba(40,34,28,.45)}
@@ -537,7 +555,7 @@ kbd{font-family:var(--display);background:#fff;border:1px solid var(--line);bord
     <div id="blog" aria-live="polite"></div>
     <div id="bmoves"></div>
     <div id="bswitch" hidden></div>
-    <div id="bopts"><button id="b-tame" class="tame" type="button">테이밍 (T)</button><button id="b-bag" type="button">가방 (B)</button><button id="b-switch" type="button">교체 (C)</button><button id="b-run" type="button">도망 (R)</button></div>
+    <div id="bopts"><button id="b-tame" class="tame" type="button">테이밍 (T)</button><button id="b-bag" type="button">가방 (B)</button><button id="b-switch" type="button">교체 (C)</button><button id="b-run" type="button">도망 (R)</button><button id="b-iv" type="button">개체값 (I)</button></div>
   </div>
 </div>
 <div id="learn" hidden><div class="learn-card panel" role="dialog" aria-modal="true"><h2 id="learn-title"></h2><p id="learn-sub"></p><div id="learn-list" style="display:grid;gap:8px"></div></div></div>
@@ -3783,7 +3801,7 @@ function renderParty(){
     const info=document.createElement("div");
     const top=document.createElement("div");top.className="pm-top";
     const nm=document.createElement("b");nm.textContent=`${i+1}. ${m.shiny?"✨":""}${m.special?"★":""}${SPECIES[m.sp].name}`;
-    const lv=document.createElement("span");lv.textContent=`Lv${m.lv}`;top.append(nm,lv);
+    const lv=document.createElement("span");lv.textContent=`Lv${m.lv}`;const gr=document.createElement("i");gr.className="ivg g"+ivGrade(m);gr.textContent=ivGrade(m);gr.title=`개체값 등급 ${ivGrade(m)} (${ivTotal(m)}/${31*STAT_KEYS.length})`;lv.appendChild(gr);top.append(nm,lv);
     const hb=document.createElement("div");hb.className="bar2";const hi=document.createElement("i");
     const r=m.hp/st.hp;hi.style.width=Math.round(r*100)+"%";hi.style.background=r>.5?"var(--grass)":r>.2?"var(--sun)":"var(--danger)";hb.appendChild(hi);
     const xb=document.createElement("div");xb.className="bar2 xp";const xi=document.createElement("i");xi.style.width=(m.lv>=MAX_LV?100:Math.round(m.xp/xpNeed(m.lv)*100))+"%";xb.appendChild(xi);
@@ -4014,6 +4032,7 @@ function openSwitch(forced){
 }
 function battleKey(k){
   const b=S.battle;if(!b||S.learn)return;
+  if(k==="i"&&typeof openBattleIv==="function"){openBattleIv();return}
   if(sayResolve&&(k==="enter"||k===" "||k==="e")){skipSay();return}
   if(!$("bswitch").hidden){if(k==="escape"&&!b.forced){$("bswitch").hidden=true;$("bmoves").hidden=false}else if(/^[1-6]$/.test(k)){const btn=$("bswitch").children[+k-1];if(btn&&!btn.disabled)btn.click()}return}
   if(b.busy)return;
@@ -4384,7 +4403,7 @@ function roomInteract(){
     healAll();toast("푹 자고 일어났어요! 몬스터들도 모두 회복했어요.");return;
   }
   if(n.act==="pc"){
-    saveProfile();const seen=DEX_ORDER.filter(sp=>dexState(sp)>=1).length,caught=DEX_ORDER.filter(sp=>dexState(sp)>=2).length;
+    saveProfile();if(typeof openBoxPC==="function"){openBoxPC();return}const seen=DEX_ORDER.filter(sp=>dexState(sp)>=1).length,caught=DEX_ORDER.filter(sp=>dexState(sp)>=2).length;
     openDialog(p.nickname,[`모험 기록을 저장했어요.`,`배지 ${p.badges.length}/6 · 도감 만남 ${seen} · 잡음 ${caught} · 팀 ${p.party.length}마리 · 보관함 ${p.box.length}마리`]);return;
   }
   if(n.act==="prof"){
@@ -4537,7 +4556,7 @@ function tag(c,text,x,y,col){
    LIVE UPDATE — when a new version is published at the game's address,
    swap to it in about a second, keeping login, position and connection.
    ===================================================================== */
-const GAME_VERSION="0.14.0";
+const GAME_VERSION="0.15.0";
 const UPDATE_CHECK_MS=15000;
 let pendingUpdate=null;
 function verNewer(a,b){const p=s=>String(s).split(".").map(n=>parseInt(n)||0);const x=p(a),y=p(b);for(let i=0;i<Math.max(x.length,y.length);i++){if((x[i]||0)!==(y[i]||0))return(x[i]||0)>(y[i]||0)}return false}
@@ -5364,11 +5383,12 @@ setInterval(botsTick,250);
 function botsOnlineCount(now=Date.now()){let n=0;for(let i=0;i<botTotal(now);i++)if(botOnline(i,now))n++;return n}
 
 /* ---------- drawing ---------- */
+let BOT_DRAW_CAP=isTouch?10:16;
 const botFollow=new Map();
 function drawBots(ents,t,inView){
   const now=Date.now();
   const stEnd=Math.floor(now/STINT)*STINT-1,pb=typeof partyBot==="function"?partyBot():null;
-  const near=botsVisible.map(v=>({v,b:v.leaving&&v.i!==pb?botAt(v.i,stEnd):botAt(v.i,now)})).filter(o=>inView(o.b.x,o.b.y)).sort((a,b)=>(a.v.i===pb?-1:0)-(b.v.i===pb?-1:0)||Math.hypot(a.b.x-S.me.x,a.b.y-S.me.y)-Math.hypot(b.b.x-S.me.x,b.b.y-S.me.y)).slice(0,isTouch?10:16);
+  const near=botsVisible.map(v=>({v,b:v.leaving&&v.i!==pb?botAt(v.i,stEnd):botAt(v.i,now)})).filter(o=>inView(o.b.x,o.b.y)).sort((a,b)=>(a.v.i===pb?-1:0)-(b.v.i===pb?-1:0)||Math.hypot(a.b.x-S.me.x,a.b.y-S.me.y)-Math.hypot(b.b.x-S.me.x,b.b.y-S.me.y)).slice(0,BOT_DRAW_CAP);
   for(const {v,b} of near){
     if(b.inside)continue; // inside a healing centre / shop / gym right now
     const p=botPersona(v.i),pr=botProgress(v.i,now),legendOwner=pr.party.some(m=>m.sp==="ignidra");
@@ -5449,7 +5469,7 @@ function botsHear(m){
   let who=named.slice(0,1);
   if(!who.length){if(near[0].d<4.5*TS)who=[near[0].i];else who=near.slice().sort((a,b)=>hash(seed,a.i,4431)-hash(seed,b.i,4431)).slice(0,1).map(o=>o.i);
     const extra=near.find(o=>!who.includes(o.i)&&o.d<9*TS);if(extra&&hash(seed,1,4430)<0.35)who.push(extra.i)}
-  const mine=S.profile&&m.pid===S.profile.pid,toWorld=/이벤트|해줘|해 줘|세계|자아|추가|늘려|갇혔|갇혀|막혔|소환/.test(text)&&!/\?|뭐|어디|누구/.test(text);
+  const mine=S.profile&&m.pid===S.profile.pid,toWorld=(/이벤트|해줘|해 줘|세계|자아|추가|늘려|갇혔|갇혀|막혔|소환/.test(text)&&!/\?|뭐|어디|누구/.test(text))||/관리자|그래픽|그림|깨졌|깨져|깨짐|아직 깨|원래대로|되돌려/.test(text);
   who.forEach((i,k)=>setTimeout(()=>{
     let r=botReply(i,m,hash(seed,i,4432),k===0&&!toWorld);
     const norm=s=>s.replace(/\s*(ㅋㅋ|ㅎㅎ|😆|✨|🔥)+$/,"").trim();
@@ -5503,7 +5523,7 @@ function startBotBattle(i){
   const p=botPersona(i),pr=botProgress(i);let team=pr.party.slice().sort((a,b)=>b.lv-a.lv).slice(0,3);try{team=botLead(i,team)}catch(e){}
   const myLv=Math.max(...S.profile.party.map(m=>m.lv)),fair=pr.lv>myLv+8;
   // a much stronger trainer fights fair: brings its team at your level (same species, its own line)
-  const foes=team.map((m,k)=>{const lv=fair?Math.max(3,myLv+1-k):m.lv;return newMon(fair?evolvedFor(SPECIES[m.sp].line||m.sp,lv,()=>0):m.sp,lv,{rnd:seededRnd(p.id+":"+k+":"+m.sp)})});
+  const foes=team.map((m,k)=>{const lv=fair?Math.max(3,myLv+1-k):m.lv;return newMon(fair?evolvedFor(SPECIES[m.sp].line||m.sp,lv,()=>0):m.sp,lv,{rnd:seededRnd(p.id+":"+m.sp)})});
   addChat({who:p.name,text:say(p,fair?`Lv${pr.lv}인 제가 그냥 하면 불공평하니까, 레벨 맞춰서 할게요!`:pickR(["좋아요, 한판 해요!","간다!!","봐주지 않아요 ㅎ"],hash(i,Date.now()/60000|0,4440))),kind:"ai",col:"#3b7dd8",key:"ai"+i});
   openBattle({kind:"gym",bot:i,gym:{id:"bot",leader:p.name,lv:pr.lv,type:SPECIES[foes[0].sp].type,name:"AI 트레이너"},foes,fi:0,title:`트레이너 ${p.name}`});
   bsay(`AI 트레이너 ${p.name}이(가) 승부를 받아들였어요!`,1200).then(()=>bsay(`${p.name}은(는) ${SPECIES[foes[0].sp].name}(Lv${foes[0].lv})을(를) 내보냈어요!`,1000)).then(()=>bsay(`${SPECIES[myMon().sp].name}, 부탁해!`,700)).then(()=>battleReady());
@@ -6400,6 +6420,387 @@ setInterval(()=>{if(S.phase!=="game")return;const N=botTotal();
 setTimeout(function hello(){if(S.phase!=="game"||!S.profile){return setTimeout(hello,3000)}
   const p=S.profile;if(p.seen014)return;p.seen014=1;saveProfile();
   selfSay("세계가 스스로 바뀌었어요: 상점에 경험치 사탕·스프레이·귀환의 날개·행운의 부적·부활의 풀이 들어왔고, AI 트레이너 옆에서 E를 누르면 대화·배틀·교환·친구·파티·길드 초대를 할 수 있어요. 매일 바뀌는 오늘의 퀘스트와 끝없는 시련도 생겼어요!")},6000);
+
+/* =====================================================================
+   👻 보이지 않는 관리자들 — 세계 안을 귀신처럼 돌아다니는 관리 자아
+   ---------------------------------------------------------------------
+   맵 위에는 보이지 않지만 세 명의 관리자가 항상 플레이어 주변을 순찰해요.
+     · 루멘 (시스템)    — 오류, 화면 멈춤, 렉, 저장, 서버 연결
+     · 노바 (지도)      — 갇히는 지형, 벽 속에 들어간 트레이너
+     · 에코 (그래픽·AI) — 몬스터 그림 깨짐, 색 이상, 잘림, 빈 그림
+   문제를 찾거나 누가 채팅으로 알려 주면, 사람처럼 단계를 밟아요:
+     ① 고민   — 증거를 모으고 원인 후보를 적어요
+     ② 해결안 — 할 수 있는 방법들을 나열해요
+     ③ 시뮬레이션 — 실제 세계를 건드리지 않고 가상으로 먼저 해 봐요
+                   (그림은 보이지 않는 캔버스에 그려서 점수를 매기고,
+                    지형은 가상 덧칠 위에서 길이 열리는지 계산)
+     ④ 행동   — 가장 좋은 방법을 실제로 적용해요
+     ⑤ 검증   — 다시 측정해서 정말 나아졌는지 확인해요
+   나아지지 않았으면 다음 방법으로 → 될 때까지 반복하고, 방법이 다 떨어지면
+   "여기까지 해 봤는데 안 됐다"고 솔직하게 말하고 기록을 남겨요.
+   사람이 "아직 깨져"라고 하면 측정값이 정상이어도 사람 말을 믿고 다음 방법을 써요.
+   모든 건 이 게임 안의 규칙으로 돌아가요 (서버·유료 AI 없음).
+   ===================================================================== */
+const ADMINS=[
+  {id:"lumen",name:"관리자 루멘",role:"시스템",emoji:"🕯️",x:0,y:0,task:"대기",tx:0,ty:0},
+  {id:"nova",name:"관리자 노바",role:"지도",emoji:"🧭",x:0,y:0,task:"대기",tx:0,ty:0},
+  {id:"echo",name:"관리자 에코",role:"그래픽·AI",emoji:"🎨",x:0,y:0,task:"대기",tx:0,ty:0},
+];
+const ADM=Object.fromEntries(ADMINS.map(a=>[a.id,a]));
+const INCIDENTS=[];   // every case with its full chain of thought
+let showAdmins=false;
+function admSay(a,text){addChat({who:`${a.emoji} ${a.name}`,text,kind:"world",col:"#7a4fc4"});worldLog(`${a.name}: ${text}`,"ai")}
+/* ---------- the reasoning loop shared by all admins ---------- */
+function newCase(a,problem,where){
+  const c={id:Date.now().toString(36)+Math.random().toString(36).slice(2,5),admin:a.id,at:Date.now(),problem,where,think:[],options:[],sims:[],acts:[],verify:[],status:"고민 중",tries:0};
+  INCIDENTS.unshift(c);if(INCIDENTS.length>40)INCIDENTS.length=40;a.task=problem;return c}
+const thinkC=(c,s)=>c.think.push(s),optC=(c,s)=>c.options.push(s);
+const simC=(c,opt,ok,note)=>c.sims.push({opt,ok,note}),actC=(c,s)=>c.acts.push(s);
+function doneC(c,ok,note){c.verify.push(note);c.status=ok?"해결":"다시 시도 예정";const a=ADM[c.admin];a.task=ok?"순찰":"재시도 대기";if(!$("world-ai").hidden)renderWorldPanel()}
+function giveUpC(c,note){c.verify.push(note);c.status="방법 소진 — 기록함";ADM[c.admin].task="순찰";if(!$("world-ai").hidden)renderWorldPanel()}
+
+/* =====================================================================
+   🎨 에코 — 그림 진단과 수리
+   ===================================================================== */
+const ART_FIX={};          // species id -> {still, src:"board"|"turn", vector, color:"tint"|"plain", aura:false}
+let FIXNOW=null;
+try{Object.assign(ART_FIX,JSON.parse(localStorage.getItem("mtw-artfix")||"{}"))}catch(e){}
+const artFixSave=()=>{try{localStorage.setItem("mtw-artfix",JSON.stringify(ART_FIX))}catch(e){}};
+/* drawing with a fix applied */
+{const _am=artMon;artMon=function(c,kind,x,y,t,dir,moving){
+  const f=FIXNOW;if(!f)return _am(c,kind,x,y,t,dir,moving);
+  if(f.vector)return false;
+  if(f.still)moving=false;
+  if(f.src==="board"&&artOk("m_"+kind)){const keys=["q","back","qback","side"].map(k=>"t_"+kind+"_"+k),saved=keys.map(k=>ART[k]);keys.forEach(k=>delete ART[k]);
+    try{return _am(c,kind,x,y,t,dir,moving)}finally{keys.forEach((k,j)=>{if(saved[j])ART[k]=saved[j]})}}
+  if(f.src==="turn"&&artOk("t_"+kind+"_q")){const s=ART["m_"+kind];delete ART["m_"+kind];try{return _am(c,kind,x,y,t,dir,moving)}finally{if(s)ART["m_"+kind]=s}}
+  return _am(c,kind,x,y,t,dir,moving)}}
+let VT=null;
+function drawVariantFixed(c,s,x,y,t,dir,moving,scale,shiny,f){
+  const k=Math.min(4,Math.max(1,Math.ceil(scale*(window.devicePixelRatio||1)))),W=160*k;
+  if(!VT){VT=document.createElement("canvas")}if(VT.width!==W){VT.width=VT.height=W}
+  const g=VT.getContext("2d");g.setTransform(1,0,0,1,0,0);g.clearRect(0,0,W,W);g.setTransform(k,0,0,k,0,0);
+  const inner=Object.assign({},f,{color:null});FIXNOW=inner;try{drawMonCore(g,s.artOf,80,130,t,dir,moving,1,shiny)}finally{FIXNOW=f}
+  if(f.color==="tint"){g.setTransform(1,0,0,1,0,0);g.globalCompositeOperation="source-atop";g.globalAlpha=0.34;g.fillStyle=TYPES[s.type].color;g.fillRect(0,0,W,W);g.globalAlpha=1;g.globalCompositeOperation="source-over"}
+  if(f.aura!==false){const [a]=EVO_FX[s.type]||EVO_FX.normal,gr=c.createRadialGradient(x,y-12,2,x,y-12,18*scale);gr.addColorStop(0,a+"00");gr.addColorStop(0.6,a+"44");gr.addColorStop(1,a+"00");c.fillStyle=gr;c.beginPath();c.arc(x,y-12,18*scale,0,7);c.fill()}
+  c.drawImage(VT,0,0,W,W,x-80*scale,y-130*scale,160*scale,160*scale);
+}
+let drawMonCore=drawMon; // everything drawn before the admin layer (variants, evolutions, shiny…)
+drawMon=function(c,kind,x,y,t,dir=0,moving=false,scale=1,shiny=false){
+  const f=ART_FIX[kind];if(!f&&!FIXNOW)return drawMonCore(c,kind,x,y,t,dir,moving,scale,shiny);
+  const use=f||FIXNOW,prev=FIXNOW,s=SPECIES[kind];FIXNOW=use;
+  try{
+    if(s&&s.variant&&use.color)return drawVariantFixed(c,s,x,y,t,dir,moving,scale,shiny,use);
+    if(s&&stageOf(kind)>1&&use.aura===false&&!(artOk("m_"+kind)||artOk("t_"+kind+"_q"))){ // evolved form drawn from its base picture, without the glow
+      const k=scale*(stageOf(kind)===2?1.18:1.36);c.save();c.translate(x,y);c.scale(k,k);c.translate(-x,-y);drawMonBase(c,artKindOf(kind),x,y,t,dir,moving,1,shiny);c.restore();return}
+    return drawMonCore(c,kind,x,y,t,dir,moving,scale,shiny);
+  }finally{FIXNOW=prev}};
+/* measuring a picture: draw every direction on a hidden canvas and look at the pixels */
+const MEAS=document.createElement("canvas");MEAS.width=MEAS.height=120;
+function measureArt(kind,fix){
+  const g=MEAS.getContext("2d",{willReadFrequently:true}),res=[],prev=FIXNOW;
+  const saved=ART_FIX[kind];if(fix===null)delete ART_FIX[kind];else if(fix)ART_FIX[kind]=fix;
+  try{for(const d of [0,1,2,3,4,5]){g.setTransform(1,0,0,1,0,0);g.clearRect(0,0,120,120);
+    try{drawMon(g,kind,60,100,0,d,false,1,false)}catch(e){res.push({d,err:String(e).slice(0,60)});continue}
+    const D=g.getImageData(0,0,120,120).data;let op=0,minx=120,miny=120,maxx=-1,maxy=-1,sat=0,lum=0,iso=0,ring=0,ringW=0;
+    for(let y=0;y<120;y++)for(let x=0;x<120;x++){const i=(y*120+x)*4;if(D[i+3]<=60)continue;op++;
+      if(x<minx)minx=x;if(x>maxx)maxx=x;if(y<miny)miny=y;if(y>maxy)maxy=y;
+      const r=D[i]/255,gg=D[i+1]/255,b=D[i+2]/255,mx=Math.max(r,gg,b),mn=Math.min(r,gg,b);sat+=mx?(mx-mn)/mx:0;lum+=(r+gg+b)/3;
+      let n=0,edge=false;for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){const xx=x+dx,yy=y+dy;if(xx<0||yy<0||xx>119||yy>119||D[((yy)*120+xx)*4+3]<=60)edge=true;else n++}
+      if(!n)iso++;if(edge){ring++;if(D[i]>232&&D[i+1]>232&&D[i+2]>232)ringW++}}
+    res.push({d,op,w:maxx-minx+1,h:maxy-miny+1,clip:op>0&&(minx<=0||miny<=0||maxx>=119||maxy>=119),sat:op?sat/op:0,lum:op?lum/op:0,iso:op?iso/op:0,whiteEdge:ring?ringW/ring:0})}}
+  finally{if(saved)ART_FIX[kind]=saved;else delete ART_FIX[kind];FIXNOW=prev}
+  // score: 0 = nothing wrong found
+  const why=[];let score=0;
+  for(const r of res){if(r.err){score+=6;why.push(`방향${r.d}에서 그리다 오류`);continue}
+    if(r.op<60){score+=5;why.push(`방향${r.d} 그림이 거의 비어 있음(${r.op}px)`)}
+    if(r.clip){score+=3;why.push(`방향${r.d} 그림이 잘림`)}
+    if(r.whiteEdge>0.3){score+=2;why.push(`방향${r.d} 테두리에 흰 배경이 남음(${Math.round(r.whiteEdge*100)}%)`)}
+    if(r.iso>0.04){score+=1;why.push(`방향${r.d} 흩어진 점(노이즈) ${Math.round(r.iso*100)}%`)}}
+  const areas=res.filter(r=>r.op).map(r=>r.op);if(areas.length&&Math.max(...areas)/Math.max(1,Math.min(...areas))>3.5){score+=1;why.push("방향마다 크기가 너무 다름")}
+  const s=SPECIES[kind];if(s&&s.variant){const av=res.filter(r=>r.op);const sat=av.reduce((a,r)=>a+r.sat,0)/Math.max(1,av.length),lum=av.reduce((a,r)=>a+r.lum,0)/Math.max(1,av.length);
+    if(sat<0.18){score+=1;why.push(`색이 바래 보임(채도 ${Math.round(sat*100)})`)}if(lum<0.2){score+=1;why.push("너무 어두움")}}
+  return{score,why,res};
+}
+function fixOptions(kind){
+  const s=SPECIES[kind],base=s&&(s.artOf||artKindOf(kind)),o=[];
+  if(s&&s.variant){o.push({fix:{color:"tint"},label:"색 바꾸는 방식을 '색조 회전'에서 '덧칠'로"});o.push({fix:{color:"plain"},label:"원래 색 그대로 + 속성 빛만"});o.push({fix:{color:"tint",still:1},label:"덧칠 + 움직임 효과 끄기"})}
+  else if(stageOf(kind)>1&&!(artOk("m_"+kind)||artOk("t_"+kind+"_q"))){o.push({fix:{aura:false},label:"진화 빛(오라) 없이 그리기"});o.push({fix:{aura:false,still:1},label:"오라 없이 + 움직임 효과 끄기"})}
+  if(artOk("t_"+base+"_q")&&artOk("m_"+base))o.push({fix:{src:"board"},label:"방향별 그림 대신 원본 보드 그림 쓰기"});
+  o.push({fix:{still:1},label:"걷기 흔들림·찌그러짐 효과 끄기"});
+  o.push({fix:{vector:1},label:"그림 대신 손으로 그린(벡터) 버전으로 그리기"});
+  return o;
+}
+const ART_CASES=new Map(); // kind -> {tried:Set, case}
+function repairArt(kind,why,fromPerson){
+  const a=ADM.echo,s=SPECIES[kind];if(!s)return;
+  let st=ART_CASES.get(kind);if(!st){st={tried:new Set(),c:null};ART_CASES.set(kind,st)}
+  const c=newCase(a,`${s.name} 그림 ${why}`,kind);st.c=c;
+  // ① 고민
+  const now=measureArt(kind,undefined),orig=measureArt(kind,null);
+  thinkC(c,`지금 모습 점수 ${now.score} (0이면 이상 없음)${now.why.length?" — "+now.why.slice(0,3).join(", "):""}`);
+  thinkC(c,`원래 그림 점수 ${orig.score}. 이미 해 본 방법 ${st.tried.size}개`);
+  if(fromPerson&&!now.score)thinkC(c,"측정으로는 이상이 안 잡히지만, 사람이 직접 봤다고 했으니 내 측정보다 그 말을 믿고 다른 방법을 써 본다");
+  // ② 해결안
+  const opts=fixOptions(kind).filter(o=>!st.tried.has(JSON.stringify(o.fix)));
+  opts.forEach(o=>optC(c,o.label));
+  if(!opts.length){
+    const best=ART_FIX[kind]?"지금 적용된 방법":"원래 그림";
+    giveUpC(c,`할 수 있는 방법 ${st.tried.size}가지를 모두 써 봤어요. ${best}을 유지하고, 원본 그림 파일 자체를 다시 받아야 하는 문제로 기록했어요.`);
+    admSay(a,`${s.name} 그림, 제가 할 수 있는 방법 ${st.tried.size}가지를 다 써 봤는데 더는 바꿀 방법이 없어요. 원본 그림 파일 자체를 새로 받아야 하는 문제로 일지에 남겼어요. "${s.name} 원래대로"라고 하면 처음 그림으로 돌려 놓을게요.`);return}
+  // ③ 시뮬레이션 — draw each option invisibly and score it
+  let pick=null,pv=1e9;
+  for(const o of opts){const m=measureArt(kind,o.fix);simC(c,o.label,m.score<=Math.max(0,orig.score-1)||m.score===0,`점수 ${m.score}${m.why.length?" ("+m.why[0]+")":""}`);if(m.score<pv){pv=m.score;pick=o}}
+  // ④ 행동
+  st.tried.add(JSON.stringify(pick.fix));ART_FIX[kind]=pick.fix;artFixSave();shareArtFix();
+  actC(c,`「${pick.label}」 적용 (시뮬레이션 점수 ${pv})`);
+  // ⑤ 검증
+  const after=measureArt(kind,undefined);
+  const ok=after.score<=now.score&&after.score<=1;
+  if(fromPerson){c.verify.push(`적용 후 점수 ${after.score} (전 ${now.score}). 측정으로는 정상 — 사람 눈으로 확인을 기다려요.`);c.status="사람 확인 대기";a.task="제보자 확인 대기";if(!$("world-ai").hidden)renderWorldPanel()}
+  else doneC(c,ok,`적용 후 점수 ${after.score} (전 ${now.score}). ${fromPerson?"직접 보고 괜찮은지 알려 주세요.":ok?"정상으로 확인.":"아직 문제가 남아 다음에 다른 방법을 써요."}`);
+  if(!ok&&!fromPerson)setTimeout(()=>repairArt(kind,"재시도",false),4000);
+  return{pick,before:now.score,after:after.score,left:opts.length-1};
+}
+function revertArt(kind){delete ART_FIX[kind];ART_CASES.delete(kind);artFixSave();shareArtFix()}
+/* fixes travel to everyone through the world state */
+function shareArtFix(){if(typeof WSTATE!=="undefined"){WSTATE.artfix=Object.assign({},ART_FIX);wsSave();setTimeout(wsPublish,800)}}
+{const _ms=mergeState;mergeState=function(s,q){_ms(s,q);try{if(s&&s.artfix&&typeof s.artfix==="object")for(const [k,f] of Object.entries(s.artfix))if(SPECIES[k]&&f&&typeof f==="object"&&!ART_FIX[k]){ART_FIX[k]={still:f.still?1:0,src:f.src==="board"||f.src==="turn"?f.src:undefined,vector:f.vector?1:0,color:f.color==="tint"||f.color==="plain"?f.color:undefined,aura:f.aura===false?false:undefined};artFixSave()}}catch(e){}}}
+/* which monsters are on screen right now */
+function monstersOnScreen(){
+  const out=new Set(),m=S.me;
+  if(S.battle){const b=S.battle;if(b.foes&&b.foes[b.fi])out.add(b.foes[b.fi].sp)}
+  const a=S.profile&&S.profile.party[S.profile.active];if(a)out.add(a.sp);
+  try{for(const w of wildNear(m.x,m.y,1))if(Math.abs(w.x-m.x)<VW/Z/2+40&&Math.abs(w.y-m.y)<VH/Z/2+40)out.add(w.sp)}catch(e){}
+  try{for(const v of botsVisible.slice(0,12)){const pr=botProgress(v.i);out.add(pr.party[0].sp)}}catch(e){}
+  return[...out].filter(k=>SPECIES[k]);
+}
+function nameInText(t){let best=null;for(const id of DEX_ORDER){const n=SPECIES[id]&&SPECIES[id].name;if(n&&t.includes(n)&&(!best||n.length>SPECIES[best].name.length))best=id}return best}
+const susp=k=>{const s=SPECIES[k];if(!s)return 0;if(s.variant)return 3;if(stageOf(k)>1&&!(artOk("m_"+k)||artOk("t_"+k+"_q")))return 2;if(!(artOk("m_"+k)||artOk("t_"+k+"_q")))return 1;return 0}; // what a person most likely sees as "off": recoloured variants, glowing evolved forms, hand-drawn ones
+let artPending=null; // the monster a person is waiting on
+function personReportsArt(m,t){
+  const a=ADM.echo;let kind=nameInText(t);
+  const still=/아직|그대로|여전|안 ?고쳐|안 ?됐|안 ?돼|똑같/.test(t);
+  if(!kind&&still&&artPending)kind=artPending;
+  if(/원래대로|되돌려|처음 그림/.test(t)&&kind){revertArt(kind);admSay(a,`${SPECIES[kind].name}를 처음 그림으로 돌려 놨어요.`);return}
+  if(!kind){
+    // nobody named it: check everything on screen and start with the worst one
+    const list=monstersOnScreen().map(k=>({k,m:measureArt(k,undefined)})).sort((x,y)=>y.m.score-x.m.score||susp(y.k)-susp(x.k));
+    if(!list.length){admSay(a,"지금 화면에 몬스터가 안 보여요. 어떤 몬스터가 깨졌는지 이름을 말해 주세요!");return}
+    const top=list[0];
+    admSay(a,`화면에 보이는 몬스터 ${list.length}마리를 모두 그려서 검사했어요. ${top.m.score?`${SPECIES[top.k].name}에서 문제를 찾았어요 (${top.m.why[0]}).`:`수치로는 이상이 안 잡혔지만, 직접 보셨다니 가장 의심되는 ${SPECIES[top.k].name}부터 고쳐 볼게요.`} 이름을 말해 주면 그 몬스터를 바로 볼게요.`);
+    kind=top.k;
+  }
+  artPending=kind;
+  const r=repairArt(kind,still?"아직 이상하다는 제보":"깨짐 제보",true);if(!r)return;
+  const s=SPECIES[kind];
+  setTimeout(()=>admSay(a,`${s.name} 처리 과정: ① 고민 — 지금 점수 ${r.before} ② 해결안 ${r.left+1}개 ③ 보이지 않는 캔버스에 전부 그려 시뮬레이션 ④ 「${r.pick.label}」 적용 ⑤ 다시 재 보니 점수 ${r.after}. 이제 어때요? 아직이면 "아직 깨져"라고 해 주세요 — 남은 방법 ${r.left}개로 계속 해 볼게요.`),600);
+}
+/* echo also patrols on its own: one monster on screen per tick, only acts on clear breakage */
+const artChecked=new Map();
+setInterval(()=>{if(S.phase!=="game"||document.hidden)return;const a=ADM.echo;
+  const list=monstersOnScreen().filter(k=>!artChecked.has(k)||Date.now()-artChecked.get(k)>600000);if(!list.length){a.task="순찰 (그림 이상 없음)";return}
+  const k=list[0];artChecked.set(k,Date.now());a.task=`${SPECIES[k].name} 그림 점검`;
+  const m=measureArt(k,undefined);if(m.score>=3&&!(ART_CASES.get(k)&&ART_CASES.get(k).tried.size>=fixOptions(k).length))repairArt(k,"자동 점검에서 이상 발견",false)},3000);
+
+/* =====================================================================
+   🧭 노바 — 지형 (갇히는 곳 / 벽 속 트레이너)
+   ===================================================================== */
+const simWalk=(x,y,ov)=>{const k=x+","+y;if(ov&&ov.has(k))return !SOLID.has(ov.get(k));return walkTile(x,y)};
+function reachSim(sx,sy,ov,R=18,cap=700){const seen=new Set([sx+","+sy]),q=[[sx,sy]];let h=0;
+  while(h<q.length&&seen.size<cap){const [x,y]=q[h++];if(Math.abs(x-sx)>=R||Math.abs(y-sy)>=R)return{open:true,n:seen.size};
+    for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){const nx=x+dx,ny=y+dy,k=nx+","+ny;if(seen.has(k)||!simWalk(nx,ny,ov))continue;seen.add(k);q.push([nx,ny])}}
+  return{open:seen.size>=cap,n:seen.size}}
+/* cheapest opening: 0-1 BFS where walking is free and clearing a decoration costs 1 */
+function planOpening(sx,sy,avoid){
+  const R=16,key=(x,y)=>x+","+y,dist=new Map([[key(sx,sy),0]]),from=new Map(),dq=[[sx,sy]];
+  while(dq.length){const [x,y]=dq.shift(),d=dist.get(key(x,y));
+    if(Math.max(Math.abs(x-sx),Math.abs(y-sy))>=12&&walkTile(x,y)&&!(avoid&&avoid.has(key(x,y)))){
+      const tiles=new Map();let k=key(x,y);while(from.has(k)){const [px,py]=k.split(",").map(Number);if(!walkTile(px,py)){const t=tileAt(px,py);tiles.set(k,(t===T.WATER||t===T.LAVA)?T.BRIDGE:T.GRASS)}k=from.get(k)}return{tiles,end:[x,y]}}
+    for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){const nx=x+dx,ny=y+dy;if(Math.abs(nx-sx)>R||Math.abs(ny-sy)>R)continue;const nk=key(nx,ny);
+      const w=walkTile(nx,ny)?0:CARVABLE.has(tileAt(nx,ny))?1:-1;if(w<0)continue;const nd=d+w;
+      if(nd<(dist.has(nk)?dist.get(nk):1e9)){dist.set(nk,nd);from.set(nk,key(x,y));if(w)dq.push([nx,ny]);else dq.unshift([nx,ny])}}}
+  return null}
+let novaLastPocket=0;
+function novaCheckPocket(){
+  if(S.room||S.battle||!S.profile||!S.profile.starter)return;
+  const a=ADM.nova,tx=Math.floor(S.me.x/TS),ty=Math.floor((S.me.y-4)/TS);
+  if(!walkTile(tx,ty))return; // the guardian moves people out of walls first
+  const r=reachSim(tx,ty,null);if(r.open)return;
+  if(Date.now()-novaLastPocket<20000)return;novaLastPocket=Date.now();
+  const c=newCase(a,`(${tx},${ty}) 주변이 막혀 있어 밖으로 나갈 길이 없음`,`${tx},${ty}`);
+  thinkC(c,`플레이어 위치에서 갈 수 있는 칸이 ${r.n}칸뿐이고 바깥(16칸 밖)으로 이어지지 않아요.`);
+  thinkC(c,"원인 후보: 나무·바위·덤불이 길을 막음 / 물이나 용암으로 둘러싸임 / 지형 생성 규칙의 우연");
+  optC(c,"막는 장식(나무·바위·덤불)을 가장 적게 치워 길 내기");optC(c,"다른 방향으로 길 내기");optC(c,"그래도 안 되면 마을로 안전하게 옮기기");
+  const avoid=new Set();
+  for(let tryN=0;tryN<3;tryN++){
+    const p=planOpening(tx,ty,avoid);if(!p){simC(c,`방향 ${tryN+1}`,false,"치울 수 있는 길이 없음");break}
+    const ov=new Map(p.tiles);const sim=reachSim(tx,ty,ov,20,900);
+    simC(c,`방향 ${tryN+1}: ${p.tiles.size}칸 치우기`,sim.open,sim.open?`가상으로 치워 보니 길이 열림 (${sim.n}칸 이상 이동 가능)`:"가상으로 치워도 여전히 막힘");
+    if(sim.open&&p.tiles.size<=40){
+      const tiles=Object.fromEntries(p.tiles);Object.assign(WSTATE.patches,tiles);applyPatch(tiles);WSTATE.fixes++;wsSave();setTimeout(wsPublish,800);
+      actC(c,`${p.tiles.size}칸을 길로 바꿈 (모든 플레이어에게 똑같이 적용)`);
+      const v=reachSim(tx,ty,null,20,900);doneC(c,v.open,v.open?"실제 지도에서 다시 재 보니 밖으로 나갈 수 있음":"아직 막힘 — 다음 순찰 때 다시");
+      if(v.open){admSay(a,`여기 갇히는 지형이었어요. 시뮬레이션으로 확인한 뒤 ${p.tiles.size}칸을 치워서 길을 냈어요.`);return}}
+    p.end&&avoid.add(p.end[0]+","+p.end[1]);
+  }
+  actC(c,"길을 낼 수 없어서 플레이어를 마을로 옮김");respawnTown();
+  giveUpC(c,"지형은 그대로 두고 플레이어만 안전하게 옮겼어요. 위치를 기록해 뒀어요.");
+  admSay(a,"이곳은 제가 길을 낼 수 없는 지형이라 마을로 옮겨 드렸어요. 위치는 기록해 뒀어요.");
+}
+const BOT_NUDGE=new Map(); // i -> {n, dx, dy}  (display correction for one walk leg)
+{const _ba=botAt;botAt=function(i,now=Date.now()){const b=_ba(i,now),f=BOT_NUDGE.get(i);
+  if(f&&b.leg&&b.leg.n===f.n&&!b.party&&!b.talking)return Object.assign({},b,{x:b.x+f.dx,y:b.y+f.dy});return b}}
+function novaCheckBots(){
+  const a=ADM.nova;let fixed=0;
+  for(const v of botsVisible.slice(0,20)){const b=botAt(v.i);if(b.inside||b.party||b.lag||!b.leg)continue;
+    if(!blocked(b.x,b.y))continue;
+    const p=botPersona(v.i),c=newCase(a,`${p.name}이(가) 벽·나무 안에 서 있음`,`ai${v.i}`);
+    thinkC(c,`(${Math.floor(b.x/TS)},${Math.floor(b.y/TS)}) 칸이 막힌 칸인데 트레이너가 그 위에 있어요. 길찾기가 실패해서 곧장 걸어간 경우일 가능성이 커요.`);
+    const cands=[];for(let r=1;r<=4&&cands.length<3;r++)for(const [dx,dy] of [[0,r],[r,0],[-r,0],[0,-r],[r,r],[-r,r]]){const x=b.x+dx*TS*0.5,y=b.y+dy*TS*0.5;if(!blocked(x,y)){cands.push([dx*TS*0.5,dy*TS*0.5]);if(cands.length>=3)break}}
+    optC(c,"가장 가까운 빈칸으로 살짝 옮겨 보이게 하기");optC(c,"다음 걸음까지 숨기기");
+    let ok=false;for(const [dx,dy] of cands){const good=!blocked(b.x+dx,b.y+dy);simC(c,`(${Math.round(dx)},${Math.round(dy)})px 이동`,good,good?"빈칸 확인":"여전히 막힘");if(good){BOT_NUDGE.set(v.i,{n:b.leg.n,dx,dy});actC(c,"보이는 위치를 빈칸으로 보정");ok=true;break}}
+    if(!ok){BOT_NUDGE.set(v.i,{n:b.leg.n,dx:0,dy:-9999});actC(c,"이번 걸음 동안 숨김")}
+    const nb=botAt(v.i);doneC(c,ok?!blocked(nb.x,nb.y):true,ok?"다시 보니 빈칸 위에 서 있음":"숨김 처리 완료");fixed++;if(fixed>=2)break}
+  if(BOT_NUDGE.size>200)BOT_NUDGE.clear();
+}
+setInterval(()=>{if(S.phase!=="game"||document.hidden)return;const a=ADM.nova;a.task="지형 순찰";try{novaCheckPocket();novaCheckBots()}catch(e){console.warn(e)}},5000);
+
+/* =====================================================================
+   🕯️ 루멘 — 시스템 (오류·렉·저장·연결)
+   ===================================================================== */
+const ERRS=[];addEventListener("error",e=>{ERRS.push({at:Date.now(),msg:String(e.message||"").slice(0,120),stack:String(e.error&&e.error.stack||"").slice(0,300)})});
+addEventListener("unhandledrejection",e=>{ERRS.push({at:Date.now(),msg:String(e.reason&&e.reason.message||e.reason||"").slice(0,120),stack:String(e.reason&&e.reason.stack||"").slice(0,300)})});
+const SUBSYS=[["bot|plan|pickGoal|findPath|botAt","AI 트레이너",()=>{plans.clear();botsVisible=[]}],["battle|bsay|foe|playerTurn","배틀",()=>{if(S.battle){try{battleReady()}catch(e){endBattle()}}}],
+  ["chunk|paint|tile|render","지형 그리기",()=>{for(const c of chunks.values())if(c.canvas){c.canvas.width=c.canvas.height=0}chunks.clear();chunkPx=0;chunkCanvases=0}],["chat|bubble","채팅",()=>{CHAT.bubbles.clear()}],
+  ["Modal|card|openBot|openTrade|openShop|openBag","창(메뉴)",()=>{try{closeModal()}catch(e){}}]];
+let lumenSeen=0,lowFps=0,lumenFpsCase=null;
+function lumenTick(){
+  const a=ADM.lumen;a.task="시스템 순찰";
+  // errors
+  const fresh=ERRS.filter(e=>e.at>lumenSeen);lumenSeen=Date.now();if(ERRS.length>60)ERRS.splice(0,ERRS.length-60);
+  if(fresh.length){const e=fresh[fresh.length-1],hay=e.msg+" "+e.stack,sub=SUBSYS.find(([re])=>new RegExp(re).test(hay));
+    const c=newCase(a,`오류 ${fresh.length}건: ${e.msg}`,sub?sub[1]:"알 수 없음");
+    thinkC(c,`오류가 난 곳의 흔적(스택)을 읽어 보니 ${sub?`「${sub[1]}」 부분`:"어느 부분인지 확실하지 않음"}이에요.`);
+    optC(c,sub?`${sub[1]} 상태를 깨끗하게 초기화`:"열린 창을 닫고 상태 정리");optC(c,"같은 오류가 또 나면 해당 기능을 잠시 쉬게 하기");
+    simC(c,"초기화",true,"초기화해도 저장 데이터(팀·가방·위치)는 건드리지 않음을 확인");
+    try{(sub?sub[2]:()=>{try{closeModal()}catch(_){}})();actC(c,"초기화 실행")}catch(x){actC(c,"초기화 중 오류: "+x.message)}
+    const msg=e.msg;setTimeout(()=>{const again=ERRS.some(x=>x.at>Date.now()-9000&&x.msg===msg);doneC(c,!again,again?"같은 오류가 또 나서 다음 순찰 때 더 강하게 처리해요":"10초 동안 같은 오류 없음 — 해결")},10000)}
+  // frame rate
+  if(WORLD.fps<24&&S.phase==="game"&&!S.battle){if(++lowFps>=3){lowFps=0;
+    const c=lumenFpsCase&&lumenFpsCase.status!=="해결"?lumenFpsCase:newCase(a,`화면이 버벅임 (${Math.round(WORLD.fps)}fps)`,"성능");lumenFpsCase=c;c.tries++;
+    if(c.tries===1){thinkC(c,`지금 화면 크기 ${Math.round(VW*DPR)}×${Math.round(VH*DPR)}px, 그려지는 트레이너 최대 ${BOT_DRAW_CAP}명, 땅 그림 캐시 ${Math.round(chunkPx*4/1e6)}MB`);
+      optC(c,"그려지는 AI 트레이너 수 줄이기");optC(c,"화면 해상도 낮추기");optC(c,"땅 그림 캐시 비우기")}
+    const plans_=[{l:"트레이너 표시 줄이기",gain:Math.max(0,BOT_DRAW_CAP-6)*0.6,go:()=>{BOT_DRAW_CAP=Math.max(6,BOT_DRAW_CAP-4)}},{l:"해상도 낮추기",gain:DPR>1?(DPR*DPR-1)*4:0,go:()=>{DPR_CAP=Math.max(1,DPR_CAP-0.5);resize()}},{l:"캐시 비우기",gain:chunkPx>CHUNK_BUDGET*0.8?2:0.3,go:()=>{for(const c2 of chunks.values())if(c2.canvas){c2.canvas.width=c2.canvas.height=0}chunks.clear();chunkPx=0;chunkCanvases=0}}];
+    plans_.forEach(p=>simC(c,p.l,p.gain>0.5,`예상 절약 점수 ${p.gain.toFixed(1)}`));
+    const best=plans_.filter(p=>p.gain>0.5).sort((x,y)=>y.gain-x.gain)[0];
+    if(best){best.go();actC(c,best.l);const before=WORLD.fps;setTimeout(()=>doneC(c,WORLD.fps>before+4||WORLD.fps>30,`적용 6초 뒤 ${Math.round(WORLD.fps)}fps (전 ${Math.round(before)})`),6000)}
+    else giveUpC(c,"더 낮출 수 있는 설정이 없어요 — 기기 성능 한계로 기록")}}else lowFps=0;
+  // saving
+  try{localStorage.setItem("mtw-probe","1");localStorage.removeItem("mtw-probe")}catch(e){
+    const c=newCase(a,"저장 공간이 꽉 참","저장");thinkC(c,"브라우저 저장소에 쓰기가 실패해요. 진행이 저장 안 될 수 있어요.");optC(c,"세계 기록·오래된 기억 정리");
+    try{WSTATE.wishes={};localStorage.removeItem("mtw-world");const bm=S.profile&&S.profile.botMem;if(bm){const ks=Object.keys(bm).sort((x,y)=>(bm[x].met||0)-(bm[y].met||0));for(const k of ks.slice(0,Math.floor(ks.length/2)))delete bm[k]}saveProfile();actC(c,"정리 후 다시 저장");doneC(c,true,"저장 다시 됨")}catch(x){giveUpC(c,"정리해도 저장이 안 돼요")}}
+  // connection
+  if(NET.wanted&&NET.mode!=="online"){a.offSince=a.offSince||Date.now();if(Date.now()-a.offSince>30000){a.offSince=Date.now();
+    const c=newCase(a,"30초째 서버에 못 들어감","연결");thinkC(c,`지금 ${NET.relay+1}번 중계 서버로 시도 중 (${NET.tries||0}번 실패)`);optC(c,"다음 중계 서버로 바꾸기");simC(c,"다음 서버",RELAYS.length>1,`${RELAYS.length}개 중 다른 서버 있음`);
+    try{if(NET.client)NET.client.ws.close();else{clearTimeout(NET.timer);openRelay()}}catch(e){}actC(c,"중계 서버 교체");setTimeout(()=>doneC(c,NET.mode==="online",NET.mode==="online"?"다시 연결됨":"아직 연결 안 됨 — 계속 시도"),9000)}}else a.offSince=0;
+}
+setInterval(()=>{if(S.phase!=="game")return;try{lumenTick()}catch(e){}},5000);
+
+/* ---------- they drift around you, unseen ---------- */
+setInterval(()=>{if(!S.me)return;const t=Date.now()/1000;
+  ADMINS.forEach((a,k)=>{const ang=t*0.07+k*2.1,r=(6+k*3+Math.sin(t*0.13+k)*3)*TS;a.tx=S.me.x+Math.cos(ang)*r;a.ty=S.me.y+Math.sin(ang)*r*0.7;a.x+=(a.tx-a.x)*0.08;a.y+=(a.ty-a.y)*0.08})},200);
+/* "관리자 보기" draws them as faint ghosts */
+{const _db=drawBots;drawBots=function(ents,t,inView){_db(ents,t,inView);if(!showAdmins)return;
+  for(const a of ADMINS){if(!inView(a.x,a.y))continue;ents.push({y:a.y,draw:()=>{ctx.save();ctx.globalAlpha=0.35+Math.sin(t*2+a.x)*0.1;ctx.font="22px sans-serif";ctx.textAlign="center";ctx.fillText("👻",a.x,a.y-8+Math.sin(t*1.7)*3);ctx.restore()},
+    lab:()=>{ctx.save();ctx.globalAlpha=0.6;label(ctx,`${a.name} · ${a.task}`,a.x,a.y-34,"#efe3ff","rgba(70,40,120,.7)");ctx.restore()}})}}}
+
+/* ---------- people talk to the admins through chat ---------- */
+{const _wh=worldHear;worldHear=function(m,fromBot){
+  const t=String(m.text||""),mine=!fromBot&&S.profile&&m.pid===S.profile.pid;
+  const artWords=/그래픽|그림|깨졌|깨져|깨짐|깨진|이상하게 보|안 ?보여|잘렸|잘려|색이 이상|흰 ?배경|하얀 ?배경/.test(t)&&!/몬스터가 없|몬스터 없/.test(t);
+  const follow=artPending&&/아직|그대로|여전|안 ?고쳐|똑같|원래대로|되돌려/.test(t);
+  if(!fromBot&&mine&&artPending&&/괜찮아|고쳐졌|이제 됐|잘 보여|좋아졌|해결됐/.test(t)){const st=ART_CASES.get(artPending);if(st&&st.c){st.c.status="해결 (제보자 확인)";st.c.verify.push("제보한 사람이 이제 괜찮다고 확인해 줬어요")}
+    admSay(ADM.echo,`확인 고마워요! ${SPECIES[artPending].name}는 지금 방식으로 고정하고 모든 플레이어에게 똑같이 적용해 둘게요.`);artPending=null;return}
+  if(!fromBot&&(artWords||follow)){if(mine)personReportsArt(m,t);return}
+  if(!fromBot&&/관리자/.test(t)){if(mine){
+    if(/보여 ?줘|보기|보이게|숨어|숨겨/.test(t)){showAdmins=!/숨/.test(t);admSay(ADM.lumen,showAdmins?"평소엔 안 보이지만, 지금은 반투명하게 보이게 해 둘게요. \"관리자 숨어\"라고 하면 다시 사라져요.":"다시 안 보이게 숨었어요.")}
+    else for(const a of ADMINS){const dx=a.x-S.me.x,dy=a.y-S.me.y,last=INCIDENTS.find(c=>c.admin===a.id);
+      setTimeout(()=>admSay(a,`${a.role} 담당이에요. 지금 ${dirWord(dx,dy)}쪽 ${Math.round(Math.hypot(dx,dy)/TS)}칸에서 「${a.task}」 중. ${last?`최근 처리: ${last.problem} → ${last.status}`:"아직 처리한 사건은 없어요"}.`),300+ADMINS.indexOf(a)*700)}}return}
+  return _wh(m,fromBot)}}
+
+/* ---------- the world panel shows each case's whole chain ---------- */
+{const _rw=renderWorldPanel;renderWorldPanel=function(){_rw();const body=$("wa-body");if(!body)return;
+  const el=(tag,cls,txt,par)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(txt!=null)e.textContent=txt;par.appendChild(e);return e};
+  const box=document.createElement("div");box.className="adm";body.insertBefore(box,body.children[1]||null);
+  el("h4",null,"👻 보이지 않는 관리자 (실시간 순찰)",box);
+  const row=el("div","adm-row",null,box);
+  for(const a of ADMINS){const d=Math.round(Math.hypot(a.x-S.me.x,a.y-S.me.y)/TS);el("div","adm-chip",`${a.emoji} ${a.name} · ${a.role} — ${a.task} (${d}칸 거리)`,row)}
+  const tg=el("button","btn ghost",showAdmins?"관리자 숨기기":"관리자 위치 보기",box);tg.type="button";tg.style.cssText="padding:6px 12px;font-size:13px;margin:4px 0";tg.onclick=()=>{showAdmins=!showAdmins;renderWorldPanel()};
+  if(!INCIDENTS.length)el("p","wa-sub","아직 처리한 사건이 없어요. 문제가 생기면 여기에 고민→해결안→시뮬레이션→행동→검증 과정이 그대로 남아요.",box);
+  for(const c of INCIDENTS.slice(0,8)){const a=ADM[c.admin],card=el("details","adm-case",null,box);
+    el("summary",null,`${a.emoji} ${new Date(c.at).toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})} ${c.problem} — ${c.status}`,card);
+    const step=(n,arr)=>{if(!arr.length)return;const s=el("div","adm-step",null,card);el("b",null,n,s);const ul=el("ul",null,null,s);for(const x of arr)el("li",null,typeof x==="string"?x:`${x.opt}: ${x.note} ${x.ok?"✅":"❌"}`,ul)};
+    step("① 고민",c.think);step("② 해결안",c.options);step("③ 시뮬레이션",c.sims);step("④ 행동",c.acts);step("⑤ 검증",c.verify)}}}
+
+/* =====================================================================
+   개체값(IV) 보기 — 내 팀, 보관함, 배틀 상대, AI 트레이너의 몬스터까지
+   ===================================================================== */
+function ivColor(v){return v>=28?"#ffd24a":v>=20?"#5cc65a":v>=10?"#4aa8ff":"#9db3ad"}
+function ivBlock(m,title){
+  const w=document.createElement("div");w.className="ivb";
+  const h=document.createElement("div");h.className="ivh";
+  const cv=document.createElement("canvas");cv.width=cv.height=72;try{drawIcon(cv,m.sp,null,m.shiny)}catch(e){}
+  const tt=document.createElement("div");const nm=document.createElement("b");nm.textContent=`${m.shiny?"✨":""}${m.special?"★":""}${SPECIES[m.sp].name} Lv${m.lv}`;
+  const sub=document.createElement("small");sub.textContent=`${title?title+" · ":""}등급 ${ivGrade(m)} · 합계 ${ivTotal(m)}/${31*STAT_KEYS.length}${m.special?" · 특수 개체":""}`;tt.append(nm,sub);h.append(cv,tt);w.appendChild(h);
+  const st=monStats(m);
+  for(const k of STAT_KEYS){const v=(m.iv&&m.iv[k])|0,r=document.createElement("div");r.className="ivr";
+    const a=document.createElement("span");a.textContent=STAT_NAME[k];const bar=document.createElement("i");const f=document.createElement("u");f.style.width=Math.round(v/31*100)+"%";f.style.background=ivColor(v);bar.appendChild(f);
+    const n=document.createElement("span");n.textContent=`${v}/31`;const sv=document.createElement("small");sv.textContent=k==="eva"?st.eva+"%":String(st[k]);r.append(a,bar,n,sv);w.appendChild(r)}
+  return w;
+}
+function openIvPop(list,heading){
+  let pop=$("ivpop");if(!pop){pop=document.createElement("div");pop.id="ivpop";document.body.appendChild(pop);pop.addEventListener("click",e=>{if(e.target===pop)closeIvPop()})}
+  pop.textContent="";const card=document.createElement("div");card.className="ivcard panel";
+  const hd=document.createElement("div");hd.className="ivtop";const h=document.createElement("b");h.textContent=heading||"개체값";const x=document.createElement("button");x.type="button";x.className="btn ghost";x.textContent="닫기";x.onclick=closeIvPop;hd.append(h,x);card.appendChild(hd);
+  const grid=document.createElement("div");grid.className="ivgrid";for(const [m,t] of list)grid.appendChild(ivBlock(m,t));card.appendChild(grid);
+  const note=document.createElement("p");note.className="sub";note.style.margin="6px 0 0";note.textContent="개체값(0~31)은 태어날 때 정해져요. 높을수록 레벨업할 때 그 능력치가 더 크게 자라요. 금색 28 이상, 초록 20 이상, 파랑 10 이상.";card.appendChild(note);
+  pop.appendChild(card);pop.hidden=false;
+}
+function closeIvPop(){const p=$("ivpop");if(p)p.hidden=true}
+addEventListener("keydown",e=>{const p=$("ivpop");if(p&&!p.hidden&&(e.key==="Escape"||e.key.toLowerCase()==="i")){e.stopPropagation();e.preventDefault();closeIvPop()}},true);
+addEventListener("keydown",e=>{if(e.key.toLowerCase()!=="i"||e.repeat||S.phase!=="game"||S.battle||S.modalOpen||S.menuOpen||S.dialog||document.activeElement&&/INPUT|TEXTAREA/.test(document.activeElement.tagName))return;const p=$("ivpop");if(p&&!p.hidden)return;
+  if(S.profile&&S.profile.party.length)openIvPop(S.profile.party.map((m,k)=>[m,`${k+1}번`]),"📊 내 팀 개체값 (I)")});
+/* battle: the foe and my monster side by side */
+function openBattleIv(){const b=S.battle;if(!b)return;const foe=b.foes&&b.foes[b.fi],me=S.profile.party[S.profile.active];
+  openIvPop([foe&&[foe,b.bot!=null?`트레이너 ${b.gym.leader}`:b.kind==="gym"?"관장":"상대"],me&&[me,"내 몬스터"]].filter(Boolean),"⚔️ 배틀 개체값 비교")}
+$("b-iv").onclick=openBattleIv;
+/* AI trainer teams: click a monster in the trainer menu */
+function botMon(i,k){const p=botPersona(i),pr=botProgress(i),x=pr.party[k];return newMon(x.sp,x.lv,{rnd:seededRnd(p.id+":"+x.sp)})}
+{const _ob=openBotMenu;openBotMenu=function(i){_ob(i);const team=$("bm-team");if(!team)return;
+  [...team.children].forEach((d,k)=>{d.style.cursor="pointer";d.title="눌러서 개체값 보기";const m=botMon(i,k);const g=document.createElement("em");g.className="ivg g"+ivGrade(m);g.textContent=ivGrade(m);d.appendChild(g);
+    d.onclick=()=>openIvPop([[m,botPersona(i).name+"의 몬스터"]],`${botPersona(i).name}의 ${SPECIES[m.sp].name}`)})}}
+/* PC in your house: team & storage with grades, move monsters between them */
+function openBoxPC(){
+  const p=S.profile,card=$("mon-card");S.modalOpen=true;S.keys.clear();
+  const draw=()=>{
+    card.innerHTML=`<div class="mon-name" style="font-size:24px">💻 몬스터 관리</div><p class="sub" style="margin:0" id="pc-msg">팀은 최대 ${PARTY_MAX}마리. 몬스터를 누르면 개체값을 볼 수 있어요.</p>
+      <h4 style="margin:4px 0">팀 (${p.party.length}/${PARTY_MAX})</h4><div class="pc-list" id="pc-party"></div><h4 style="margin:4px 0">보관함 (${p.box.length})</h4><div class="pc-list" id="pc-box"></div>
+      <div class="row"><button class="btn" id="pc-close" type="button">닫기</button></div>`;
+    const row=(m,where,idx)=>{const r=document.createElement("div");r.className="pc-row";const cv=document.createElement("canvas");cv.width=cv.height=56;try{drawIcon(cv,m.sp,null,m.shiny)}catch(e){}
+      const t=document.createElement("span");t.textContent=`${m.shiny?"✨":""}${m.special?"★":""}${SPECIES[m.sp].name} Lv${m.lv}`;const g=document.createElement("i");g.className="ivg g"+ivGrade(m);g.textContent=ivGrade(m);t.appendChild(g);
+      const iv=document.createElement("button");iv.type="button";iv.className="btn ghost";iv.textContent="개체값";iv.onclick=()=>openIvPop([[m,where==="party"?"팀":"보관함"]],SPECIES[m.sp].name);
+      const mv=document.createElement("button");mv.type="button";mv.className="btn ghost";
+      if(where==="party"){mv.textContent="보관함으로";mv.disabled=p.party.length<=1;mv.onclick=()=>{const act=p.party[p.active];p.party.splice(idx,1);p.box.push(m);const k=p.party.indexOf(act);p.active=k>=0?k:Math.max(0,p.party.findIndex(x=>x.hp>0));saveProfile();renderParty();try{netSendStarter()}catch(e){}draw()}}
+      else{mv.textContent="팀으로";mv.disabled=p.party.length>=PARTY_MAX;mv.onclick=()=>{p.box.splice(idx,1);p.party.push(m);saveProfile();renderParty();draw()}}
+      r.append(cv,t,iv,mv);return r};
+    p.party.forEach((m,k)=>$("pc-party").appendChild(row(m,"party",k)));
+    if(!p.box.length){const e=document.createElement("div");e.className="sub";e.textContent="보관함이 비어 있어요. 팀이 가득 찬 상태에서 테이밍하면 여기로 와요.";$("pc-box").appendChild(e)}
+    p.box.forEach((m,k)=>$("pc-box").appendChild(row(m,"box",k)));
+    $("pc-close").onclick=closeModal;
+  };
+  draw();$("modal").hidden=false;
+}
 
 
 </script>
