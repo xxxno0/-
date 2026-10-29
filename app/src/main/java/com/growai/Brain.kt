@@ -1,10 +1,25 @@
 package com.growai
 
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
+
 /** 생명 루프: 보기 → 기억 → (호기심 or Jev 판단) → 터치 → 평가 → 저장 → 성장 → 막히면 스스로 해결.
  *  오류가 나도 죽지 않고 5초 쉬었다 다시 일어난다. */
 class Brain(private val svc: BrainService, private val cfg: Config, private val mem: Memory) {
     private val llm = Llm(cfg)
     private val jev = Jev(cfg)
+    private val helper = Executors.newSingleThreadExecutor()  // 딥서치·회고는 뒤에서, 플레이는 안 멈춤
+    private val thinking = AtomicBoolean(false)
+
+    /** 오래 걸리는 생각을 백그라운드로. 이미 생각 중이면 건너뜀 */
+    private fun think(life: Life, what: String, job: () -> Unit) {
+        if (!thinking.compareAndSet(false, true)) return
+        life.boost = true; Bus.log(what)
+        helper.execute {
+            try { job() } catch (e: Exception) { Bus.log("  ↪ 생각 실패: ${e.message?.take(120)}") }
+            finally { life.boost = false; thinking.set(false) }
+        }
+    }
 
     /** 입력 실행: tap:x:y / swipe:x1:y1:x2:y2 / hold:x:y:초 / key:back / wait:초 (x,y는 화면 비율) */
     fun act(spec: String) {
@@ -29,6 +44,7 @@ class Brain(private val svc: BrainService, private val cfg: Config, private val 
                 Thread.sleep(5000)
             }
         }
+        helper.shutdownNow()
     }
 
     /** 게임 화면이 앞에 올 때까지 기다림 (GrowAI 자신·홈 화면은 무시) */
@@ -51,8 +67,9 @@ class Brain(private val svc: BrainService, private val cfg: Config, private val 
         val (steps, lessons) = mem.stats(game)
         Bus.log("🎮 $game | Lv.${life.level} · ${steps}스텝 · 교훈 ${lessons}개")
         val acts = mem.getActions(game) ?: Discover(svc, this, llm).run(game).also { mem.saveActions(game, it) }
-        var state = llm.describe(svc.jpeg(), game)
-        var stuck = 0; var rounds = 0; var n = 0
+        var shot = svc.bitmap()
+        var state = llm.describe(svc.jpeg(shot), game)
+        var stuck = 0; var rounds = 0; var n = 0; var saved = 0
         val stuckAfter = cfg["stuck_after"].toIntOrNull() ?: 5
 
         while (BrainService.running) {
@@ -73,22 +90,33 @@ class Brain(private val svc: BrainService, private val cfg: Config, private val 
             Bus.log("▶ $action ($why)")
             for (s in acts.getValue(action).does) { if (!BrainService.running) return; act(s) }
 
-            val newState = llm.describe(svc.jpeg(), game)
-            val score = jev.progress(state, action, newState)
+            // 가속: 화면이 거의 안 바뀌었으면 AI 호출 2번(눈·판정)을 생략하고 "효과 없음"으로 기록
+            val newShot = svc.bitmap()
+            val changed = Pix.diff(Pix.gray(shot), Pix.gray(newShot)) > 2.0
+            val newState = if (changed) llm.describe(svc.jpeg(newShot), game) else state
+            val score = if (changed) jev.progress(state, action, newState) else { saved += 2; 0.05 }
+            shot = newShot
             mem.addExp(game, state, action, score)
             life.gain(score)
-            Bus.status("$game · Lv.${life.level} · XP ${life.xp.toInt()} · 조작 ${acts.size}개 · 호기심 ${(life.curiosity * 100).toInt()}%")
+            Bus.status("$game · Lv.${life.level} · XP ${life.xp.toInt()} · 조작 ${acts.size}개 · " +
+                "호기심 ${(life.curiosity * 100).toInt()}% · 아낀 호출 $saved" + if (thinking.get()) " · 🔎조사 중" else "")
 
             if (n % 25 == 0) life.evolve(acts).takeIf { it.isNotEmpty() }?.let { acts.putAll(it); mem.saveActions(game, acts) }
-            if (n % 60 == 0) {  // 회고(일기)
-                val tip = llm.solve(game, state, mem.recent(game, 30), "(회고: 잘 된 것/안 된 것 정리)")
-                mem.addLesson(game, "회고 " + state.take(200), tip); Bus.log("📔 회고: $tip")
+            if (n % 60 == 0) {  // 회고(일기): 빠른 AI로 뒤에서 정리
+                val snap = state; val hist = mem.recent(game, 30)
+                think(life, "📔 회고 쓰는 중...") {
+                    val tip = llm.ask("게임 '$game' 플레이 기록:\n$hist\n지금 상황:\n$snap\n\n" +
+                        "잘 된 것·안 된 것을 보고 다음에 쓸 전략을 한국어 1~2줄로.", 200)
+                    mem.addLesson(game, "회고 " + snap.take(200), tip); Bus.log("📔 회고: $tip")
+                }
             }
             stuck = if (score > 0.5) 0 else stuck + 1
-            if (stuck >= stuckAfter) {
-                Bus.log("🧩 막힘 → 웹검색+AI로 해결 중")
-                val fix = llm.solve(game, newState, mem.recent(game), Http.search("$game ${newState.take(80)} guide"))
-                mem.addLesson(game, newState, fix); Bus.log("💡 교훈: $fix")
+            if (stuck >= stuckAfter) {  // 막힘 → 제미나이 딥서치는 뒤에서, 그동안 호기심 올려서 계속 시도
+                val snap = newState; val hist = mem.recent(game)
+                think(life, "🧩 막힘 → 제미나이 딥서치 시작 (플레이는 계속)") {
+                    val fix = llm.solve(game, snap, hist)
+                    mem.addLesson(game, snap, fix); Bus.log("💡 교훈: ${fix.take(300)}")
+                }
                 stuck = 0; rounds++
                 if (rounds % 3 == 0) { acts.putAll(Discover(svc, this, llm).run(game)); mem.saveActions(game, acts) }
             }

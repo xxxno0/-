@@ -11,8 +11,8 @@ android {
         applicationId = "com.growai"
         minSdk = 26
         targetSdk = 34
-        versionCode = 3
-        versionName = "0.3"
+        versionCode = 4
+        versionName = "0.4"
     }
 
     // 고정 서명키: 새 버전을 설치해도 "덮어쓰기 설치"가 되어 기억(DB)과 설정이 유지됨

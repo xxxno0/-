@@ -7,6 +7,7 @@ import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
 import android.media.projection.MediaProjectionManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
@@ -36,25 +37,43 @@ class MainActivity : Activity() {
         statusView = TextView(this).apply { text = "잠자는 중 💤"; setTextColor(Color.rgb(22, 163, 74)); textSize = 15f }
         col.addView(statusView)
 
-        col.addView(section("⚙ API 설정 (복사 → 📋 붙여넣기)"))
-        for ((key, label, secret) in Config.FIELDS) {
-            col.addView(TextView(this).apply { text = label; textSize = 13f; setPadding(0, px(8), 0, 0) })
+        col.addView(section("⚙ API 설정 (🔑 발급 → 복사 → 📋 붙여넣기)"))
+        col.addView(TextView(this).apply {
+            text = "Jev 키 + Groq·제미나이 중 하나 이상이면 시작할 수 있어요. 둘 다 넣으면 더 빠르고 똑똑해져요."
+            textSize = 12f; setTextColor(Color.GRAY)
+        })
+        val adv = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; visibility = View.GONE }
+        for (f in Config.FIELDS) {
+            val box = if (f.advanced) adv else col
+            box.addView(TextView(this).apply { text = f.label; textSize = 13f; setPadding(0, px(8), 0, 0) })
             val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
             val hidden = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
             val shown = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
             val e = EditText(this).apply {
-                setSingleLine(); setText(cfg[key]); inputType = if (secret) hidden else shown
+                setSingleLine(); setText(cfg[f.key]); inputType = if (f.secret) hidden else shown
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
             }
-            fields[key] = e; row.addView(e)
+            fields[f.key] = e; row.addView(e)
+            f.url?.let { url ->
+                row.addView(small("🔑") { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) })
+            }
             row.addView(small("📋") {
                 val clip = getSystemService(ClipboardManager::class.java).primaryClip
                 val t = clip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.coerceToText(this)?.toString()?.trim()
                 if (t.isNullOrEmpty()) toast("클립보드가 비어 있어요") else e.setText(t)
             })
-            if (secret) row.addView(small("👁") { e.inputType = if (e.inputType == hidden) shown else hidden; e.setSelection(e.text.length) })
-            col.addView(row)
+            if (f.secret) row.addView(small("👁") { e.inputType = if (e.inputType == hidden) shown else hidden; e.setSelection(e.text.length) })
+            box.addView(row)
         }
+        col.addView(Button(this).apply {
+            text = "▸ 고급 설정 (모델 이름 · 직접 입력 LLM)"; setAllCaps(false)
+            setOnClickListener {
+                val open = adv.visibility != View.VISIBLE
+                adv.visibility = if (open) View.VISIBLE else View.GONE
+                text = (if (open) "▾" else "▸") + " 고급 설정 (모델 이름 · 직접 입력 LLM)"
+            }
+        })
+        col.addView(adv)
         col.addView(big("💾 설정 저장", Color.rgb(34, 197, 94)) {
             fields.forEach { (k, e) -> cfg[k] = e.text.toString().trim() }
             toast("저장됨 · 실행 중이어도 바로 반영돼요")
@@ -96,7 +115,8 @@ class MainActivity : Activity() {
         fields.forEach { (k, e) -> cfg[k] = e.text.toString().trim() }
         when {
             cfg["typesafe_api_key"].isEmpty() -> toast("TypeSafe (Jev) API 키를 넣어주세요")
-            cfg["llm_base_url"].isEmpty() || cfg["vision_model"].isEmpty() -> toast("LLM 주소와 비전 모델을 넣어주세요")
+            cfg["groq_api_key"].isEmpty() && cfg["gemini_api_key"].isEmpty() && cfg["llm_base_url"].isEmpty() ->
+                toast("Groq 또는 제미나이 키를 넣어주세요 (🔑 버튼으로 무료 발급)")
             HandsService.me == null -> toast("먼저 1번 '손 켜기'를 해주세요")
             BrainService.running -> toast("이미 깨어 있어요")
             else -> startActivityForResult(

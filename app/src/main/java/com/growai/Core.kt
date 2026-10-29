@@ -22,6 +22,10 @@ object Bus {
     fun status(s: String) = main.post { onStatus?.invoke(s) }
 }
 
+/** 설정 칸: 키, 표시 이름, 비밀값 여부, 🔑 발급 사이트(없으면 버튼 없음), 고급 설정 여부 */
+data class Field(val key: String, val label: String, val secret: Boolean = false,
+                 val url: String? = null, val advanced: Boolean = false)
+
 /** 설정(API 키 등): 앱 전용 저장소에 보관, 백업 꺼둠 */
 class Config(ctx: Context) {
     private val p = ctx.getSharedPreferences("growai", Context.MODE_PRIVATE)
@@ -29,17 +33,26 @@ class Config(ctx: Context) {
     operator fun set(k: String, v: String) { p.edit().putString(k, v).apply() }
 
     companion object {
-        /** (키, 표시 이름, 비밀값 여부) */
         val FIELDS = listOf(
-            Triple("typesafe_api_key", "TypeSafe (Jev) API 키", true),
-            Triple("jev_model", "Jev 모델", false),
-            Triple("typesafe_base_url", "TypeSafe 주소", false),
-            Triple("llm_base_url", "LLM 주소 (FreeLLMAPI 등)", false),
-            Triple("llm_api_key", "LLM API 키", true),
-            Triple("vision_model", "비전 모델 (이미지 가능)", false),
-            Triple("text_model", "텍스트 모델 (비우면 비전 모델)", false),
+            Field("typesafe_api_key", "TypeSafe (Jev) 키 · 판단", true, "https://typesafe.ai"),
+            Field("groq_api_key", "Groq 키 · 빠른 눈/잡무 (무료)", true, "https://console.groq.com/keys"),
+            Field("gemini_api_key", "제미나이 키 · 딥서치 (무료)", true, "https://aistudio.google.com/apikey"),
+            Field("groq_vision_model", "Groq 비전 모델", advanced = true),
+            Field("groq_text_model", "Groq 텍스트 모델", advanced = true),
+            Field("gemini_research_model", "제미나이 딥서치 모델", advanced = true),
+            Field("gemini_fast_model", "제미나이 예비 눈/잡무 모델", advanced = true),
+            Field("llm_base_url", "직접 입력 LLM 주소 (FreeLLMAPI 등, 선택)", advanced = true),
+            Field("llm_api_key", "직접 입력 LLM 키", true, advanced = true),
+            Field("vision_model", "직접 입력 비전 모델", advanced = true),
+            Field("text_model", "직접 입력 텍스트 모델", advanced = true),
+            Field("jev_model", "Jev 모델", advanced = true),
+            Field("typesafe_base_url", "TypeSafe 주소", advanced = true),
         )
         val DEFAULTS = mapOf(
+            "groq_vision_model" to "qwen/qwen3.8-27b",
+            "groq_text_model" to "openai/gpt-oss-20b",
+            "gemini_research_model" to "gemini-3.8-flash",
+            "gemini_fast_model" to "gemini-3.5-flash-lite",
             "jev_model" to "jev-latest",
             "typesafe_base_url" to "https://api.typesafe.ai",
             "typesafe_path" to "/v1/systemone",
@@ -49,12 +62,14 @@ class Config(ctx: Context) {
 }
 
 object Http {
-    fun post(url: String, key: String, body: JSONObject, timeoutMs: Int = 60000): JSONObject {
+    fun post(url: String, key: String, body: JSONObject, timeoutMs: Int = 60000,
+             headers: Map<String, String> = emptyMap()): JSONObject {
         val c = URL(url).openConnection() as HttpURLConnection
         c.requestMethod = "POST"; c.doOutput = true
         c.connectTimeout = 15000; c.readTimeout = timeoutMs
         c.setRequestProperty("Content-Type", "application/json")
         if (key.isNotEmpty()) c.setRequestProperty("Authorization", "Bearer $key")
+        headers.forEach { (k, v) -> c.setRequestProperty(k, v) }
         c.outputStream.use { it.write(body.toString().toByteArray()) }
         val code = c.responseCode
         val txt = (if (code < 400) c.inputStream else c.errorStream)?.bufferedReader()?.use { it.readText() } ?: ""

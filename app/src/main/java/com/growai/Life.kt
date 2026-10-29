@@ -13,7 +13,8 @@ class Life(private val mem: Memory, private val game: String) {
     var xp = mem.totalXp(game)
         private set
     val level get() = sqrt(xp / 5).toInt() + 1                       // 클수록 레벨업이 점점 어려움
-    val curiosity get() = max(0.08, 0.45 / level.toDouble().pow(0.5))  // 어릴수록 호기심 많고, 0은 안 됨
+    @Volatile var boost = false  // 딥서치 기다리는 동안엔 호기심을 올려서 스스로도 길을 찾음
+    val curiosity get() = max(if (boost) 0.35 else 0.08, 0.45 / level.toDouble().pow(0.5))  // 어릴수록 호기심 많고, 0은 안 됨
 
     fun gain(score: Double) {
         val before = level; xp += score
@@ -50,18 +51,24 @@ class Life(private val mem: Memory, private val game: String) {
     }
 }
 
+/** 화면 비교용: 64x36 흑백으로 줄여 평균 밝기 차이 계산 (AI 호출 없이 빠름) */
+object Pix {
+    fun gray(b: Bitmap): IntArray {
+        val s = Bitmap.createScaledBitmap(b, 64, 36, true)
+        val px = IntArray(64 * 36); s.getPixels(px, 0, 64, 0, 0, 64, 36)
+        return IntArray(px.size) { ((px[it] shr 16 and 255) + (px[it] shr 8 and 255) + (px[it] and 255)) / 3 }
+    }
+    fun diff(a: IntArray, b: IntArray) = a.indices.sumOf { abs(a[it] - b[it]) }.toDouble() / a.size
+}
+
 /** 조작법 자동 발견: 웹 검색 + 직접 눌러보고 화면이 바뀌는 입력만 채택 */
 class Discover(private val svc: BrainService, private val brain: Brain, private val llm: Llm) {
     private val probes = listOf(0.2, 0.5, 0.8).flatMap { y -> listOf(0.15, 0.5, 0.85).map { x -> "tap:$x:$y" } } + listOf(
         "swipe:0.5:0.7:0.5:0.3", "swipe:0.5:0.3:0.5:0.7", "swipe:0.8:0.5:0.2:0.5", "swipe:0.2:0.5:0.8:0.5",
         "hold:0.15:0.8:0.5", "hold:0.85:0.8:0.5")
 
-    private fun gray(b: Bitmap): IntArray {
-        val s = Bitmap.createScaledBitmap(b, 64, 36, true)
-        val px = IntArray(64 * 36); s.getPixels(px, 0, 64, 0, 0, 64, 36)
-        return IntArray(px.size) { ((px[it] shr 16 and 255) + (px[it] shr 8 and 255) + (px[it] and 255)) / 3 }
-    }
-    private fun diff(a: IntArray, b: IntArray) = a.indices.sumOf { abs(a[it] - b[it]) }.toDouble() / a.size
+    private fun gray(b: Bitmap) = Pix.gray(b)
+    private fun diff(a: IntArray, b: IntArray) = Pix.diff(a, b)
 
     private fun probe(): Map<String, Act> {
         val base = (1..2).maxOf { val a = gray(svc.bitmap()); Thread.sleep(300); diff(a, gray(svc.bitmap())) }
@@ -80,7 +87,7 @@ class Discover(private val svc: BrainService, private val brain: Brain, private 
     }
 
     private fun fromWeb(game: String): Map<String, Act> = try {
-        val web = Http.search("$game mobile controls how to play")
+        val web = llm.research("모바일 게임 '$game'의 조작법(버튼 위치, 터치/스와이프 방법)과 초반 진행 방법을 조사해서 정리해줘.")
         val t = llm.ask("게임 '$game'(모바일)의 조작법 검색 결과:\n$web\n\n이 게임을 플레이할 행동 목록을 JSON만 출력해. " +
             "형식: {\"행동이름\": {\"desc\": \"설명\", \"do\": [\"입력\"]}}. 입력 형식: tap:x:y / swipe:x1:y1:x2:y2 / " +
             "hold:x:y:초 / key:back / wait:초 (x,y는 0~1 화면 비율). 6~14개.", 800)

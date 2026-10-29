@@ -3,17 +3,47 @@ package com.growai
 import android.util.Base64
 import org.json.JSONArray
 import org.json.JSONObject
+import java.util.concurrent.ConcurrentHashMap
 
-/** 눈 + 두뇌: OpenAI 호환 LLM (FreeLLMAPI 등). 설정을 매번 읽어서 키를 바꾸면 바로 반영 */
+/** 무료 AI 하나 = OpenAI 호환 주소 + 키 + 비전 모델 + 텍스트 모델 */
+private class Provider(val name: String, val base: String, val key: String, val vision: String, val text: String)
+
+/** AI 라우터: 일마다 가장 빠른 무료 AI부터 쓰고, 한도(429)·오류가 나면 잠깐 쉬게 하고 다음 AI로 자동 전환.
+ *  - 눈(화면 설명)·잡무(JSON, 교훈, 회고): Groq → 제미나이 → 직접 입력 LLM
+ *  - 딥서치(모르는 것 조사): 제미나이 + 구글 검색 → 실패 시 무료 웹검색 + Groq 요약
+ *  설정을 매번 읽어서 키를 바꾸면 바로 반영 */
 class Llm(private val cfg: Config) {
-    private val vision get() = cfg["vision_model"]
-    private val text get() = cfg["text_model"].ifBlank { vision }
+    private val restUntil = ConcurrentHashMap<String, Long>()
 
-    private fun chat(model: String, content: Any, max: Int = 400): String {
-        val body = JSONObject().put("model", model).put("max_tokens", max)
-            .put("messages", JSONArray().put(JSONObject().put("role", "user").put("content", content)))
-        return Http.post(cfg["llm_base_url"].trimEnd('/') + "/chat/completions", cfg["llm_api_key"], body)
-            .getJSONArray("choices").getJSONObject(0).getJSONObject("message").getString("content").trim()
+    private fun providers(): List<Provider> = listOfNotNull(
+        cfg["groq_api_key"].takeIf { it.isNotEmpty() }?.let {
+            Provider("Groq", "https://api.groq.com/openai/v1", it, cfg["groq_vision_model"], cfg["groq_text_model"]) },
+        cfg["gemini_api_key"].takeIf { it.isNotEmpty() }?.let {
+            Provider("Gemini", "https://generativelanguage.googleapis.com/v1beta/openai", it, cfg["gemini_fast_model"], cfg["gemini_fast_model"]) },
+        cfg["llm_base_url"].takeIf { it.isNotEmpty() }?.let {
+            Provider("직접입력", it.trimEnd('/'), cfg["llm_api_key"], cfg["vision_model"], cfg["text_model"].ifBlank { cfg["vision_model"] }) },
+    )
+
+    private fun chat(vision: Boolean, content: Any, max: Int = 400): String {
+        val now = System.currentTimeMillis()
+        val list = providers().filter { (if (vision) it.vision else it.text).isNotBlank() }
+        if (list.isEmpty()) throw IllegalStateException("Groq·제미나이·LLM 중 키를 하나 이상 넣어주세요")
+        val ready = list.filter { (restUntil[it.name] ?: 0) < now }.ifEmpty { list }
+        var last: Exception? = null
+        for (p in ready) {
+            try {
+                val body = JSONObject().put("model", if (vision) p.vision else p.text).put("max_tokens", max)
+                    .put("messages", JSONArray().put(JSONObject().put("role", "user").put("content", content)))
+                return Http.post("${p.base}/chat/completions", p.key, body)
+                    .getJSONArray("choices").getJSONObject(0).getJSONObject("message").optString("content").trim()
+            } catch (e: Exception) {
+                last = e
+                val wait = if (e.message?.contains("HTTP 429") == true) 60_000L else 15_000L
+                restUntil[p.name] = System.currentTimeMillis() + wait
+                Bus.log("  ↪ ${p.name} 쉬는 중 (${wait / 1000}초) → 다음 AI로")
+            }
+        }
+        throw last ?: IllegalStateException("AI 응답 없음")
     }
 
     private fun withImage(prompt: String, jpg: ByteArray) = JSONArray()
@@ -22,17 +52,39 @@ class Llm(private val cfg: Config) {
             JSONObject().put("url", "data:image/jpeg;base64," + Base64.encodeToString(jpg, Base64.NO_WRAP))))
 
     fun identify(jpg: ByteArray, pkg: String) =
-        chat(vision, withImage("앱 패키지: '$pkg'. 이 게임 이름만 한 줄로 답해.", jpg), 30).lines().first().trim()
+        chat(true, withImage("앱 패키지: '$pkg'. 이 게임 이름만 한 줄로 답해.", jpg), 30).lines().first().trim()
 
-    fun describe(jpg: ByteArray, game: String) = chat(vision, withImage(
+    fun describe(jpg: ByteArray, game: String) = chat(true, withImage(
         "게임: $game\n화면을 보고 지금 상황을 5줄 이내로 설명해. 캐릭터 위치, 적/장애물, 메뉴/대화창 여부, " +
         "누를 수 있어 보이는 버튼과 대략적 위치(화면 비율 x,y), 목표로 보이는 것.", jpg))
 
-    fun ask(prompt: String, max: Int = 300) = chat(text, prompt, max)
+    /** 빠른 잡무 (JSON 만들기, 회고 등) */
+    fun ask(prompt: String, max: Int = 300) = chat(false, prompt, max)
 
-    fun solve(game: String, situation: String, history: String, web: String) = ask(
-        "게임 '$game'에서 막혔다.\n상황:\n$situation\n최근 행동:\n$history\n웹 검색 결과:\n$web\n\n" +
-        "이 상황을 넘기 위한 구체적 방법을 1~3줄로. 가능한 행동 이름으로 표현해.", 200)
+    /** 딥서치: 제미나이가 구글 검색으로 직접 조사 → 출처 기반 해결법. 안 되면 무료 웹검색 + 빠른 AI */
+    fun research(question: String): String {
+        val key = cfg["gemini_api_key"]
+        if (key.isNotEmpty() && (restUntil["GeminiSearch"] ?: 0) < System.currentTimeMillis()) {
+            try {
+                val body = JSONObject()
+                    .put("contents", JSONArray().put(JSONObject().put("parts", JSONArray().put(JSONObject().put("text", question)))))
+                    .put("tools", JSONArray().put(JSONObject().put("google_search", JSONObject())))
+                val r = Http.post("https://generativelanguage.googleapis.com/v1beta/models/${cfg["gemini_research_model"]}:generateContent",
+                    "", body, 90_000, mapOf("x-goog-api-key" to key))
+                val parts = r.getJSONArray("candidates").getJSONObject(0).getJSONObject("content").getJSONArray("parts")
+                val text = (0 until parts.length()).joinToString("") { parts.getJSONObject(it).optString("text") }.trim()
+                if (text.isNotEmpty()) { Bus.log("  🔎 제미나이 딥서치 완료"); return text }
+            } catch (e: Exception) {
+                restUntil["GeminiSearch"] = System.currentTimeMillis() + 120_000
+                Bus.log("  ↪ 제미나이 딥서치 실패 → 무료 웹검색으로 (${e.message?.take(80)})")
+            }
+        }
+        return ask("$question\n\n웹 검색 결과:\n${Http.search(question.lines().first().take(120))}", 400)
+    }
+
+    fun solve(game: String, situation: String, history: String) = research(
+        "모바일 게임 '$game'에서 막혔다. 공략·가이드를 조사해서 해결법을 알려줘.\n상황:\n$situation\n최근 행동:\n$history\n\n" +
+        "답은 한국어 1~3줄, 화면 어디를 탭/스와이프하면 되는지처럼 구체적인 행동으로.")
 }
 
 /** 판단: TypeSafe Jev → 행동 선택(choice) / 진전 판정(boolean) */
