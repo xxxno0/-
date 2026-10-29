@@ -6,6 +6,9 @@ import java.util.concurrent.atomic.AtomicBoolean
 /** 생명 루프: 보기 → 기억 → (호기심 or Jev 판단) → 터치 → 평가 → 저장 → 성장 → 막히면 스스로 해결.
  *  오류가 나도 죽지 않고 5초 쉬었다 다시 일어난다. */
 class Brain(private val svc: BrainService, private val cfg: Config, private val mem: Memory) {
+    private val gen = BrainService.gen
+    /** 이 두뇌가 아직 살아있는지: 정지했거나 새로 깨운 두뇌가 있으면 즉시 멈춤 (두뇌 2개 동시 실행 방지) */
+    val alive get() = BrainService.running && BrainService.gen == gen
     private val llm = Llm(cfg)
     private val jev = Jev(cfg)
     private val helper = Executors.newSingleThreadExecutor()  // 딥서치·회고는 뒤에서, 플레이는 안 멈춤
@@ -37,9 +40,9 @@ class Brain(private val svc: BrainService, private val cfg: Config, private val 
     }
 
     fun live() {
-        while (BrainService.running) {
+        while (alive) {
             try { run() } catch (e: Exception) {
-                if (!BrainService.running) break
+                if (!alive) break
                 Bus.log("⚠ 다쳤지만 회복 중... ${e.message?.take(200)}")
                 Thread.sleep(5000)
             }
@@ -47,13 +50,17 @@ class Brain(private val svc: BrainService, private val cfg: Config, private val 
         helper.shutdownNow()
     }
 
-    /** 게임 화면이 앞에 올 때까지 기다림 (GrowAI 자신·홈 화면은 무시) */
+    /** 지금 맨 앞에 있는 앱 (이벤트를 놓쳐도 1초마다 직접 확인) */
+    private fun front(): String = HandsService.me?.rootInActiveWindow?.packageName?.toString() ?: HandsService.pkg
+
+    /** 게임 화면이 앞에 올 때까지 기다림 (GrowAI·홈 화면·설정·권한 창은 무시) */
     private fun waitForGame(): String {
-        var told = false
-        while (BrainService.running) {
-            val p = HandsService.pkg
-            if (p.isNotEmpty() && p != "com.growai" && !p.contains("launcher")) return p
-            if (!told) { Bus.log("🎮 게임을 열면 바로 시작해요"); Bus.status("게임 기다리는 중 👀"); told = true }
+        var last = ""
+        while (alive) {
+            val p = front()
+            if (svc.isPlayable(p)) { Bus.log("🎯 앞에 있는 앱: $p"); return p }
+            if (p != last) { Bus.log("🎮 게임을 열면 바로 시작해요 (지금 앞: ${p.ifEmpty { "?" }})"); last = p }
+            Bus.status("게임 기다리는 중 👀")
             Thread.sleep(1000)
         }
         return ""
@@ -62,19 +69,21 @@ class Brain(private val svc: BrainService, private val cfg: Config, private val 
     private fun run() {
         val pkg = waitForGame().ifEmpty { return }
         Thread.sleep(1500)  // 게임 화면이 다 뜰 때까지
-        val game = llm.identify(svc.jpeg(), pkg).ifBlank { pkg }
+        val game = svc.appLabel(pkg)   // 이름은 폰에서 바로 (AI 호출 1번 절약 + 홈 화면 착각 방지)
         val life = Life(mem, game)
         val (steps, lessons) = mem.stats(game)
         Bus.log("🎮 $game | Lv.${life.level} · ${steps}스텝 · 교훈 ${lessons}개")
-        val acts = mem.getActions(game) ?: Discover(svc, this, llm).run(game).also { mem.saveActions(game, it) }
+        val acts = mem.getActions(game)?.takeIf { it.size >= 4 }  // 예전에 망가진 탐색 결과는 버리고 다시
+            ?: Discover(svc, this, llm).run(game).also { if (alive) mem.saveActions(game, it) }
+        if (!alive) return
         var shot = svc.bitmap()
         var state = llm.describe(svc.jpeg(shot), game)
         var stuck = 0; var rounds = 0; var n = 0; var saved = 0
         val stuckAfter = cfg["stuck_after"].toIntOrNull() ?: 5
 
-        while (BrainService.running) {
+        while (alive) {
             n++
-            if (HandsService.pkg != pkg && n % 3 == 0) {  // 다른 앱으로 바뀜 → 잠깐 멈추고 다시 인식
+            if (n % 3 == 0 && front().let { it.isNotEmpty() && it != pkg && it != "com.android.systemui" }) {  // 다른 앱으로 바뀜 → 다시 인식
                 Bus.log("↩ 게임 밖으로 나갔어요"); return
             }
             val rates = mem.rates(game); val counts = mem.counts(game)
@@ -88,7 +97,7 @@ class Brain(private val svc: BrainService, private val cfg: Config, private val 
             }
             val action: String = if (acts.containsKey(chosen)) chosen else live.keys.first()
             Bus.log("▶ $action ($why)")
-            for (s in acts.getValue(action).does) { if (!BrainService.running) return; act(s) }
+            for (s in acts.getValue(action).does) { if (!alive) return; act(s) }
 
             // 가속: 화면이 거의 안 바뀌었으면 AI 호출 2번(눈·판정)을 생략하고 "효과 없음"으로 기록
             val newShot = svc.bitmap()

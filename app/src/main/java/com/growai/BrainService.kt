@@ -26,6 +26,7 @@ import kotlin.concurrent.thread
 class BrainService : Service() {
     companion object {
         @Volatile var running = false
+        @Volatile var gen = 0
         const val STOP = "com.growai.STOP"
     }
 
@@ -46,20 +47,35 @@ class BrainService : Service() {
         val mpm = getSystemService(MediaProjectionManager::class.java)
         proj = mpm.getMediaProjection(i.getIntExtra("code", 0), data) ?: return stopNow()
         proj!!.registerCallback(object : MediaProjection.Callback() {
-            override fun onStop() { running = false; Bus.log("👁 화면 보기 권한이 끝났어요") }
+            override fun onStop() { if (running) { running = false; Bus.log("👁 화면 보기 권한이 끝났어요 (다시 깨워주세요)") } }
         }, Handler(Looper.getMainLooper()))
         dpi = resources.displayMetrics.densityDpi
         realSize().let { (rw, rh) -> w = rw; h = rh }
         reader = ImageReader.newInstance(w / 2, h / 2, PixelFormat.RGBA_8888, 2)
         vd = proj!!.createVirtualDisplay("GrowAI-eyes", w / 2, h / 2, dpi,
             DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, reader!!.surface, null, null)
-        running = true
+        homes = packageManager.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0)
+            .map { it.activityInfo.packageName }.toSet()
+        gen++; running = true
         Bus.log("🌱 깨어났어요. 게임을 열어주세요!")
         thread(name = "growai-brain") {
             try { Brain(this, Config(this), Memory(this)).live() } finally { stopSelf() }
         }
         return START_NOT_STICKY
     }
+
+    private var homes = emptySet<String>()
+    private val never = setOf("com.growai", "com.android.systemui", "com.android.settings", "android",
+        "com.google.android.permissioncontroller", "com.android.permissioncontroller",
+        "com.google.android.packageinstaller", "com.android.packageinstaller", "com.samsung.android.app.galaxyfinder")
+
+    /** 플레이할 수 있는 앱인지: 홈 화면·설정·권한 창·GrowAI 제외, 아이콘 있는 앱만 */
+    fun isPlayable(p: String) = p.isNotEmpty() && p !in never && p !in homes && !p.contains("launcher") &&
+        !p.contains("inputmethod") && packageManager.getLaunchIntentForPackage(p) != null
+
+    fun appLabel(p: String): String = try {
+        packageManager.getApplicationLabel(packageManager.getApplicationInfo(p, 0)).toString()
+    } catch (e: Exception) { p }
 
     private fun stopNow(): Int { Bus.log("⚠ 화면 보기 권한을 못 받았어요"); stopSelf(); return START_NOT_STICKY }
 
@@ -121,9 +137,10 @@ class BrainService : Service() {
     }
 
     override fun onDestroy() {
+        val was = running || proj != null
         running = false
         vd?.release(); reader?.close(); proj?.stop()
-        Bus.log("■ 잠들었어요 (기억은 저장됨)"); Bus.status("잠자는 중 💤")
+        if (was) { Bus.log("■ 잠들었어요 (기억은 저장됨)"); Bus.status("잠자는 중 💤") }
         super.onDestroy()
     }
 }

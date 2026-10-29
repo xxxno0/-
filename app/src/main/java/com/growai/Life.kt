@@ -75,7 +75,7 @@ class Discover(private val svc: BrainService, private val brain: Brain, private 
         val th = base * 2 + 1.5
         val found = mutableMapOf<String, Act>()
         for (p in probes) {
-            if (!BrainService.running) break
+            if (!brain.alive) break
             val before = gray(svc.bitmap()); brain.act(p); Thread.sleep(350)
             val d = diff(before, gray(svc.bitmap()))
             if (d > th) {
@@ -92,15 +92,34 @@ class Discover(private val svc: BrainService, private val brain: Brain, private 
             "형식: {\"행동이름\": {\"desc\": \"설명\", \"do\": [\"입력\"]}}. 입력 형식: tap:x:y / swipe:x1:y1:x2:y2 / " +
             "hold:x:y:초 / key:back / wait:초 (x,y는 0~1 화면 비율). 6~14개.", 800)
         Memory.fromJson(JSONObject(t.substring(t.indexOf('{'), t.lastIndexOf('}') + 1)))
-    } catch (e: Exception) { emptyMap() }
+    } catch (e: Exception) { Bus.log("  ↪ 웹/AI 조작법 추정 실패: ${e.message?.take(120)}"); emptyMap() }
 
     fun run(game: String): MutableMap<String, Act> {
         Bus.log("🔍 조작법 스스로 찾는 중...")
         val web = fromWeb(game); Bus.log("  웹/AI 추정 ${web.size}개")
         val acts = (probe() + web).toMutableMap()   // 이름 겹치면 웹(의미 있는 이름) 우선
+        if (acts.size < 3) {  // 아무것도 못 찾아도 기본 터치는 갖고 시작 → 플레이하면서 배움
+            Bus.log("  기본 터치 세트로 시작 (플레이하며 배움)")
+            BASIC.forEach { (k, v) -> acts.putIfAbsent(k, v) }
+        }
         acts.putIfAbsent("wait", Act("잠시 기다리며 관찰", listOf("wait:1")))
         acts.putIfAbsent("back", Act("뒤로/닫기", listOf("key:back")))
         Bus.log("✅ 조작 ${acts.size}개 확보")
         return acts
+    }
+
+    companion object {
+        val BASIC = mapOf(
+            "tap_center" to Act("화면 가운데 탭", listOf("tap:0.5:0.5")),
+            "tap_bottom" to Act("아래쪽 가운데 탭 (시작/확인 버튼 자리)", listOf("tap:0.5:0.85")),
+            "tap_top" to Act("위쪽 가운데 탭", listOf("tap:0.5:0.2")),
+            "tap_left" to Act("왼쪽 탭", listOf("tap:0.15:0.5")),
+            "tap_right" to Act("오른쪽 탭", listOf("tap:0.85:0.5")),
+            "tap_bottom_right" to Act("오른쪽 아래 탭 (공격/점프 버튼 자리)", listOf("tap:0.88:0.82")),
+            "hold_joystick_left" to Act("왼쪽 아래 조이스틱 왼쪽으로", listOf("swipe:0.18:0.8:0.08:0.8")),
+            "hold_joystick_right" to Act("왼쪽 아래 조이스틱 오른쪽으로", listOf("swipe:0.18:0.8:0.28:0.8")),
+            "swipe_up" to Act("위로 스와이프", listOf("swipe:0.5:0.7:0.5:0.3")),
+            "swipe_left" to Act("왼쪽으로 스와이프", listOf("swipe:0.8:0.5:0.2:0.5")),
+        )
     }
 }

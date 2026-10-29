@@ -87,7 +87,8 @@ class MainActivity : Activity() {
         col.addView(handsBtn)
         col.addView(big("2. 🎮 깨우기 (그다음 게임 열기)", Color.rgb(59, 130, 246)) { wake() })
         col.addView(big("■ 재우기 (정지)", Color.rgb(71, 85, 105)) {
-            startService(Intent(this, BrainService::class.java).setAction(BrainService.STOP))
+            if (!BrainService.running) toast("이미 자고 있어요")
+            else startService(Intent(this, BrainService::class.java).setAction(BrainService.STOP))
         })
 
         col.addView(section("📜 성장 기록"))
