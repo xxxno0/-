@@ -22,15 +22,25 @@ jobs:
         with:
           gradle-version: "8.9"
 
+      # 서명키 고정: Secret(KEYSTORE_B64)이 있으면 그걸, 없으면 처음 만든 키를 캐시에 보관해 계속 재사용
+      #  → 빌드마다 키가 바뀌지 않아서 새 버전을 덮어 설치할 수 있고 기억도 유지됨
+      - name: Load saved signing key
+        id: keycache
+        uses: actions/cache@v4
+        with:
+          path: app/growai.keystore
+          key: growai-signing-key-v1
+
       - name: Restore signing key
         env:
           KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
         run: |
           if [ -n "$KEYSTORE_B64" ]; then echo "$KEYSTORE_B64" | base64 -d > app/growai.keystore
-          else
-            echo "::warning::KEYSTORE_B64 secret 없음 → 임시 키로 서명 (업데이트 시 재설치 필요)"
+          elif [ ! -f app/growai.keystore ]; then
+            echo "::notice::처음 한 번만 새 서명키 생성 → 이후 빌드는 같은 키 사용"
             keytool -genkeypair -keystore app/growai.keystore -storepass growai123 -keypass growai123 -alias growai -keyalg RSA -keysize 2048 -validity 36500 -dname CN=GrowAI
           fi
+          keytool -list -v -keystore app/growai.keystore -storepass growai123 | grep -m1 SHA256
 
       - name: Build APK
         run: gradle assembleRelease --no-daemon --stacktrace
