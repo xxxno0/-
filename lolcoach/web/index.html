@@ -101,6 +101,11 @@ table{width:100%;border-collapse:collapse;font-size:13px}td,th{border-bottom:1px
     <p>서버<select id="s-platform"><option>kr</option><option>jp1</option><option>na1</option><option>euw1</option><option>eun1</option><option>vn2</option></select></p>
     <p>지역<select id="s-region"><option>asia</option><option>americas</option><option>europe</option><option>sea</option></select></p>
     <p>프로 계정 (한 줄에 하나, 닉네임#태그)<textarea id="s-pro_accounts" rows="4"></textarea></p>
+    <p><label class="sw"><input type="checkbox" id="s-screen_enabled" style="width:auto"> 내 화면 보기 (AI가 미니맵의 웨이브·적 정글·와드, 체력·쿨타임을 직접 봄)</label></p>
+    <p>미니맵 위치<select id="s-minimap_side"><option value="right">오른쪽 아래</option><option value="left">왼쪽 아래</option></select></p>
+    <p>모니터 번호<input id="s-monitor" type="number"></p>
+    <p><button class="btn" id="checkMini">미니맵이 제대로 잡히는지 확인</button></p>
+    <img id="miniPreview" style="max-width:100%;display:none;border:1px solid var(--line);border-radius:8px">
     <p>챔피언마다 합의에 쓸 정점 플레이어 수<input id="s-top_players_per_champion" type="number"></p>
     <button class="btn primary" id="save">저장</button> <span id="saved" class="warn"></span>
   </div>
@@ -240,7 +245,8 @@ async function loadSessions(){
 }
 window.openSession = async id => {
   const s = await api("/api/sessions/" + encodeURIComponent(id)); currentSession = id;
-  const rows = [...s.calls.map(c => ({t: c.t, html: `<b>코치 콜</b> ${esc(c.text)}`})), ...s.qa.map(q => ({t: q.t, html: `<b>질문</b> ${esc(q.q)}<br><b>답</b> ${esc(q.a)}`}))].sort((a, b) => a.t - b.t);
+  const pic = n => n ? `<img loading="lazy" src="/api/sessions/${encodeURIComponent(id)}/img/${encodeURIComponent(n)}" style="width:100%;border-radius:6px;margin-top:6px">` : "";
+  const rows = [...s.calls.map(c => ({t: c.t, html: `<b>코치 콜</b> ${esc(c.text)}${pic(c.img)}`})), ...s.qa.map(q => ({t: q.t, html: `<b>질문</b> ${esc(q.q)}<br><b>답</b> ${esc(q.a)}${pic(q.img)}`}))].sort((a, b) => a.t - b.t);
   $("#sessionOut").innerHTML = `<div class="card"><div class="row" style="justify-content:space-between"><b>${esc(s.champion)} vs ${esc(s.opponent || "?")}</b><button class="btn primary" onclick="review('${esc(id)}')">이 게임 리뷰 생성</button></div>` +
     rows.map(r => `<div class="feed"><div class="item p2"><span class="t">${fmt(r.t)}</span>${r.html}<div>${seekBtn(r.t)}</div></div></div>`).join("") + `</div>`;
 };
@@ -277,13 +283,14 @@ $("#ctxBtn").onclick = async () => {
 };
 
 // ---------------- 설정
-const fields = ["anthropic_api_key","riot_api_key","my_riot_id","platform","region","pro_accounts","top_players_per_champion"];
+const fields = ["anthropic_api_key","riot_api_key","my_riot_id","platform","region","pro_accounts","top_players_per_champion","minimap_side","monitor"];
+$("#checkMini").onclick = () => { const i = $("#miniPreview"); i.style.display = "block"; i.onerror = () => { i.style.display = "none"; alert("화면 캡처가 꺼져 있거나 실패했어요"); }; i.src = "/api/screen?" + Date.now(); };
 async function loadConfig(){
-  const c = await api("/api/config");
+  const c = await api("/api/config"); $("#s-screen_enabled").checked = c.screen_enabled;
   for (const f of fields){ const el = $("#s-" + f); if (f.endsWith("api_key")) el.placeholder = c[f] ? "설정됨 (바꿀 때만 입력)" : el.placeholder; else el.value = Array.isArray(c[f]) ? c[f].join("\n") : c[f]; }
 }
 $("#save").onclick = async () => {
-  const body = {}; for (const f of fields){ const v = $("#s-" + f).value; if (v !== "") body[f] = v; }
+  const body = {screen_enabled: $("#s-screen_enabled").checked}; for (const f of fields){ const v = $("#s-" + f).value; if (v !== "") body[f] = v; }
   await api("/api/config", body); $("#saved").textContent = "저장됨"; loadConfig(); setTimeout(() => $("#saved").textContent = "", 2000);
 };
 </script>

@@ -32,6 +32,12 @@ class Config:
     top_players_per_champion: int = 5   # 챔피언마다 정점 플레이어 몇 명을 합의에 쓸지
     min_games_on_champion: int = 5      # 그 챔피언을 최소 몇 판 한 사람만 '장인'으로 인정
 
+    # 내 화면 보기 (미니맵의 웨이브·적 정글·와드, 체력/쿨타임을 AI가 직접 읽음)
+    screen_enabled: bool = True
+    monitor: int = 1                    # 롤이 떠 있는 모니터 번호 (1=주 모니터)
+    minimap_fraction: float = 0.28      # 화면 높이 대비 미니맵 영역 크기
+    minimap_side: str = "right"         # 미니맵 위치 (롤 설정에서 왼쪽으로 옮겼으면 "left")
+
     # 서버
     host: str = "0.0.0.0"
     port: int = 8443

@@ -2,6 +2,7 @@ import asyncio
 import json
 
 import pytest
+from PIL import Image
 from fastapi.testclient import TestClient
 
 from lolcoach.coach import Coach, list_sessions, load_session
@@ -11,6 +12,7 @@ from lolcoach.llm import split_sentences
 from lolcoach.mock import game_at
 from lolcoach.riot import DataDragon
 from lolcoach.server import create_app
+from lolcoach.screen import make_shot
 from lolcoach.state import parse
 from lolcoach.triggers import Detector
 
@@ -165,7 +167,9 @@ def test_coach_solo_kill_flow(brain, tmp_path):
         sent.append(m)
 
     llm = FakeLlm()
-    coach = Coach(Config(min_gap_between_calls=0), llm, brain, fake_dd(), bc, sessions_dir=tmp_path / "s")
+    shot = make_shot(Image.new("RGB", (1920, 1080), (20, 80, 20)))
+    coach = Coach(Config(min_gap_between_calls=0), llm, brain, fake_dd(), bc, sessions_dir=tmp_path / "s",
+                  capture=lambda: shot)
 
     async def run():
         for t in range(0, 230, 5):
@@ -176,13 +180,19 @@ def test_coach_solo_kill_flow(brain, tmp_path):
     sid = asyncio.run(run())
     says = [m["text"] for m in sent if m["type"] == "say"]
     assert any("솔킬" in s for s in says) and "웨이브를 밀고 귀환하세요." in says
-    q = [c for c in llm.calls if "솔킬" in c["messages"][-1]["content"]][0]
+    q = [c for c in llm.calls if "솔킬" in str(c["messages"][-1]["content"])][0]
     assert "75초 안에 귀환" in q["system"][-1]["text"]             # 챌린저 데이터가 프롬프트에 들어감
     assert q["system"][-1]["cache_control"] == {"type": "ephemeral"}
-    assert '"맞라이너"' in q["messages"][-1]["content"] and q["effort"] == "low"
+    content = q["messages"][-1]["content"]
+    assert [b["type"] for b in content] == ["image", "image", "text"]      # 내 화면 + 미니맵을 봄
+    assert content[0]["source"]["media_type"] == "image/jpeg"
+    assert '"맞라이너"' in content[2]["text"] and q["effort"] == "low"
     rec = load_session(sid, tmp_path / "s")
     assert rec["champion"] == "Ahri" and rec["opponent"] == "Zed"
     assert any(c["kind"] == "solo_kill" for c in rec["calls"]) and rec["qa"] and rec["snapshots"]
+    lv = next(c for c in rec["calls"] if c["kind"] == "level_lead")
+    assert (tmp_path / "s" / sid / lv["img"]).exists()                    # 리플레이용 화면 저장
+    assert all(qa["img"] for qa in rec["qa"])
     assert list_sessions(tmp_path / "s")[0]["id"] == sid
 
 
@@ -200,7 +210,7 @@ def test_coach_followup_keeps_history(brain, tmp_path):
 def test_server_endpoints(brain, tmp_path, monkeypatch):
     monkeypatch.setattr("lolcoach.config.CONFIG_PATH", tmp_path / "config.json")
     monkeypatch.setattr("lolcoach.config.DATA_DIR", tmp_path)
-    app = create_app(Config(), FakeLlm(), brain, fake_dd(), poll=False)
+    app = create_app(Config(), FakeLlm(), brain, fake_dd(), poll=False, capture=lambda: None)
     app.state.coach.sessions_dir = tmp_path / "s"
     with TestClient(app) as c:
         assert "롤 코치" in c.get("/").text
@@ -217,3 +227,23 @@ def test_server_endpoints(brain, tmp_path, monkeypatch):
             types = [ws.receive_json()["type"] for _ in range(3)]
             assert types[0] == "answer_start"
         assert c.post("/api/review", json={}).status_code == 400   # 라이엇 ID 없음 → 안내
+
+
+def test_make_shot_crops_minimap():
+    img = Image.new("RGB", (2560, 1440), (0, 0, 0))
+    img.paste((255, 0, 0), (2560 - 403, 1440 - 403, 2560, 1440))        # 오른쪽 아래 = 미니맵
+    shot = make_shot(img)
+    full, mini = Image.open(__import__("io").BytesIO(shot.full)), Image.open(__import__("io").BytesIO(shot.minimap))
+    assert full.size == (1280, 720) and mini.size == (403, 403)
+    r, g, b = mini.getpixel((200, 200))
+    assert r > 200 and g < 50
+
+
+def test_history_has_no_images(brain, tmp_path):
+    async def bc(m):
+        pass
+    shot = make_shot(Image.new("RGB", (800, 600)))
+    coach = Coach(Config(), FakeLlm("네."), brain, None, bc, sessions_dir=tmp_path / "s", capture=lambda: shot)
+    coach.state = parse(game_at(300))
+    asyncio.run(coach.ask("지금 웨이브 어때?"))
+    assert coach.history[0] == {"role": "user", "content": "지금 웨이브 어때?"}   # 다음 질문 비용 절약

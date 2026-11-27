@@ -19,6 +19,7 @@ from .learn import Brain, benchmark, crawl, describe
 from .llm import ClaudeLlm, Llm
 from .review import review_latest, seek_replay
 from .riot import DataDragon, Riot, RiotError, live_get
+from .screen import Screen
 
 log = logging.getLogger("lolcoach")
 WEB = Path(__file__).parent / "web"
@@ -71,7 +72,7 @@ class Hub:
 
 
 def create_app(cfg: Config | None = None, llm: Llm | None = None, brain: Brain | None = None,
-               dd: DataDragon | None = None, poll: bool = True) -> FastAPI:
+               dd: DataDragon | None = None, poll: bool = True, capture=None) -> FastAPI:
     cfg = cfg or Config.load()
     hub = Hub()
     brain = brain or Brain()
@@ -90,7 +91,9 @@ def create_app(cfg: Config | None = None, llm: Llm | None = None, brain: Brain |
         async def json(self, *a, **k):
             return await get_llm().json(*a, **k)
 
-    coach = Coach(cfg, LazyLlm(), brain, dd, hub.send)
+    if capture is None:
+        capture = Screen(cfg.monitor, cfg.minimap_fraction, cfg.minimap_side).capture
+    coach = Coach(cfg, LazyLlm(), brain, dd, hub.send, capture=capture)
     status = {"in_game": False, "learning": False}
 
     async def poller():
@@ -175,7 +178,7 @@ def create_app(cfg: Config | None = None, llm: Llm | None = None, brain: Brain |
                 if isinstance(cur, list) and isinstance(v, str):
                     v = [x.strip() for x in v.splitlines() if x.strip()]
                 elif isinstance(cur, bool):
-                    v = bool(v)
+                    v = v if isinstance(v, bool) else str(v).lower() in ("1", "true", "on", "yes")
                 elif isinstance(cur, (int, float)) and not isinstance(cur, bool):
                     v = type(cur)(v)
                 setattr(cfg, k, v)
@@ -241,6 +244,22 @@ def create_app(cfg: Config | None = None, llm: Llm | None = None, brain: Brain |
             raise HTTPException(404, "기록 없음")
         return d
 
+
+    @app.get("/api/sessions/{sid}/img/{name}")
+    async def session_img(sid: str, name: str):
+        p = coach.sessions_dir / Path(sid).name / Path(name).name
+        if not p.exists():
+            raise HTTPException(404, "이미지 없음")
+        return FileResponse(p, media_type="image/jpeg")
+
+    @app.get("/api/screen")
+    async def screen_now():
+        """설정 확인용: 지금 캡처되는 미니맵 영역"""
+        shot = await coach.shot()
+        if not shot:
+            raise HTTPException(400, "화면 캡처가 꺼져 있거나 실패했어요")
+        from fastapi import Response
+        return Response(shot.minimap, media_type="image/jpeg")
 
     @app.post("/api/review")
     async def review(body: Review):
