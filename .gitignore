@@ -1,7 +1,7 @@
-.gradle/
-build/
-app/build/
-local.properties
-*.iml
-.idea/
-*.keystore
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+config.json
+*.pem
+*.db
